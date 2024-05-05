@@ -1,0 +1,10 @@
+file(GLOB src_list *.cc)
+
+foreach(v ${src_list})
+    string(REGEX MATCH "tests/.*" relative_path ${v})
+    string(REGEX REPLACE "tests/" "" target_name ${relative_path})
+    string(REGEX REPLACE ".cc" "" target_name ${target_name})
+    add_executable(${target_name} ${v})
+    target_include_directories(${target_name} PUBLIC ../source)
+    target_link_libraries(${target_name} PUBLIC conet)
+endforeach()

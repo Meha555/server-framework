@@ -12,7 +12,7 @@ namespace meha {
 
 static thread_local bool t_hook_enabled = false;
 
-static Logger::ptr system_logger = GET_LOGGER("system");
+static Logger::ptr root_logger = GET_LOGGER("root");
 
 static meha::ConfigVar<int>::ptr g_tcp_connect_timeout = meha::Config::Lookup("tcp.connect.timeout", 5000);
 
@@ -59,7 +59,7 @@ struct _HookIniter
         hook_init();
         s_connect_timeout = g_tcp_connect_timeout->getValue();
         g_tcp_connect_timeout->addListener([](const int &old_value, const int &new_value) {
-            LOG_FMT_INFO(system_logger, "tcp connect timeout change from %d to %d", old_value, new_value);
+            LOG_FMT_INFO(root_logger, "tcp connect timeout change from %d to %d", old_value, new_value);
             s_connect_timeout = new_value;
         });
     }
@@ -85,7 +85,7 @@ doIO(int fd, OriginFunc func, const char *hook_func_name, uint32_t event, int fd
         return func(fd, std::forward<Args>(args)...);
     }
 
-    // LOG_FMT_DEBUG(meha::system_logger, "doIO 代理执行系统函数 %s",
+    // LOG_FMT_DEBUG(meha::root_logger, "doIO 代理执行系统函数 %s",
     // hook_func_name);
 
     meha::FileDescriptor::ptr fdp = meha::FileDescriptorManager::getInstance()->get(fd);
@@ -112,7 +112,7 @@ RETRY:
     // 出现错误 EAGAIN，是因为长时间未读到数据或者无法写入数据，直接把这个 fd 丢到
     // IOManager 里监听对应事件，触发后返回本执行上下文
     if (n == -1 && errno == EAGAIN) {
-        LOG_FMT_DEBUG(meha::system_logger, "doIO(%s): 开始异步等待", hook_func_name);
+        LOG_FMT_DEBUG(meha::root_logger, "doIO(%s): 开始异步等待", hook_func_name);
 
         auto iom = meha::IOManager::GetThis();
         meha::Timer::ptr timer;
@@ -136,7 +136,7 @@ RETRY:
 
         int rt = iom->addEventListener(fd, static_cast<meha::FDEventType>(event));
         if (rt == -1) {
-            LOG_FMT_ERROR(meha::system_logger, "%s addEventListener(%d, %u)", hook_func_name, fd, event);
+            LOG_FMT_ERROR(meha::root_logger, "%s addEventListener(%d, %u)", hook_func_name, fd, event);
             if (timer) {
                 timer->cancel();
             }
@@ -286,7 +286,7 @@ int connectWithTimeout(int sockfd, const struct sockaddr *addr, socklen_t addrle
         if (timer) {
             timer->cancel();
         }
-        LOG_FMT_ERROR(meha::system_logger, "connectWithTimeout addEventListener(%d, write) error", sockfd);
+        LOG_FMT_ERROR(meha::root_logger, "connectWithTimeout addEventListener(%d, write) error", sockfd);
     }
 
     int error = 0;

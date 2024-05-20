@@ -4,13 +4,15 @@
 #include "util.h"
 #include <boost/array.hpp>
 #include <iostream>
+#include <ostream>
 #include <pthread.h>
+#include <yaml-cpp/exceptions.h>
 
 void TEST_defaultLogger()
 {
     std::cout << ">>>>>> Call TEST_defaultLogger 测试日志器的默认用法 <<<<<<" << std::endl;
     auto logger = meha::LoggerManager::getInstance()->getLogger("root");
-    auto event = std::make_shared<meha::LogEvent>(__FILE__, __LINE__, meha::GetThreadID(), meha::GetFiberID(), "wdnmd");
+    auto event = MAKE_LOG_EVENT(meha::LogEvent::LogLevel::DEBUG, "wdnmd");
     logger->log(event);
     logger->debug(event);
     logger->info(event);
@@ -50,29 +52,37 @@ void TEST_loggerConfig()
     std::cout << ">>>>>> Call TEST_loggerConfig 测试日志器的配置文件加载 <<<<<<" << std::endl;
     auto config = meha::Config::Lookup("logs");
     LOG_DEBUG(GET_ROOT_LOGGER(), config->toString().c_str());
-    auto yaml_node = YAML::LoadFile("../config.yml");
-    meha::Config::LoadFromYAML(yaml_node);
-    LOG_DEBUG(GET_ROOT_LOGGER(), config->toString().c_str());
+    try {
+        auto yaml_node = YAML::LoadFile("../config.yml");
+        meha::Config::LoadFromYAML(yaml_node);
+        LOG_DEBUG(GET_ROOT_LOGGER(), config->toString().c_str());
+    } catch (const YAML::BadFile &e) {
+        std::cerr << "打开文件失败：" << e.what() << std::endl;
+    }
 }
 
 void TEST_createLoggerByYAMLFile()
 {
     std::cout << ">>>>>> Call TEST_createAndUsedLogger 测试配置功能 <<<<<<" << std::endl;
-    auto yaml_node = YAML::LoadFile("../config.yml");
-    meha::Config::LoadFromYAML(yaml_node);
-    auto global_logger = meha::LoggerManager::getInstance()->getRootLogger;
-    auto system_logger = meha::LoggerManager::getInstance()->getLogger("system");
+    try {
+        auto yaml_node = YAML::LoadFile("../config.yml");
+        meha::Config::LoadFromYAML(yaml_node);
+        auto global_logger = GET_ROOT_LOGGER();
+        auto system_logger = GET_LOGGER("system");
 
-    LOG_DEBUG(global_logger, "输出一条 debug 日志到全局日志器");
-    LOG_INFO(global_logger, "输出一条 info 日志到全局日志器");
-    LOG_ERROR(global_logger, "输出一条 error 日志到全局日志器");
+        LOG_DEBUG(global_logger, "输出一条 debug 日志到全局日志器");
+        LOG_INFO(global_logger, "输出一条 info 日志到全局日志器");
+        LOG_ERROR(global_logger, "输出一条 error 日志到全局日志器");
 
-    LOG_DEBUG(system_logger, "输出一条 debug 日志到 system 日志器");
-    LOG_INFO(system_logger, "输出一条 info 日志到 system 日志器");
-    LOG_ERROR(system_logger, "输出一条 error 日志到 system 日志器");
-    // auto event = MAKE_LOG_EVENT(meha::LogLevel::DEBUG, "输出一条 debug 日志");
-    // global_logger->log(event);
-    // system_logger->log(event);
+        LOG_DEBUG(system_logger, "输出一条 debug 日志到 system 日志器");
+        LOG_INFO(system_logger, "输出一条 info 日志到 system 日志器");
+        LOG_ERROR(system_logger, "输出一条 error 日志到 system 日志器");
+        // auto event = MAKE_LOG_EVENT(meha::LogLevel::DEBUG, "输出一条 debug 日志");
+        // global_logger->log(event);
+        // system_logger->log(event);
+    } catch (const YAML::BadFile& e) {
+        std::cerr << "打开文件失败：" << e.what() << std::endl;
+    }
 }
 
 void fn_1()
@@ -105,9 +115,9 @@ int main()
 
     TEST_macroDefaultLogger();
     TEST_defaultLogger();
-    // TEST_getNonexistentLogger();
-    // TEST_loggerConfig();
-    // TEST_createLoggerByYAMLFile();
+    TEST_getNonexistentLogger();
+    TEST_loggerConfig();
+    TEST_createLoggerByYAMLFile();
     TEST_multiThreadLog();
 
     return 0;

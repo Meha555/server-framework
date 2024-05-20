@@ -162,14 +162,18 @@ UnknowAddress::UnknowAddress()
 
 const sockaddr* UnknowAddress::getAddr() const
 {
+    return nullptr;
 }
 
 socklen_t UnknowAddress::getAddrLen() const
 {
+    return -1;
 }
 
 std::ostream& UnknowAddress::insert(std::ostream& os) const
 {
+    //FIXME 这个返回值是否合适
+    return std::cout;
 }
 
 } // namespace meha

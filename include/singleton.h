@@ -23,7 +23,7 @@ private:
 };
 
 /**
- * @brief 单例包装类
+ * @brief 单例包装类（要求被包装类型有默认构造函数）
  * @details Singleton::getInstance 返回被包装类型的 std::shared_ptr 智能指针
  */
 template <class T>

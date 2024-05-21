@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 #include <yaml-cpp/exceptions.h>
 
-#include "config.h"
+#include "config.hpp"
 #include "log.h"
 #include "thread.h"
 #include "util.h"
@@ -89,7 +89,7 @@ TEST(TEST_CASE, CreateLoggerByYAMLFile)
         LOG_DEBUG(root_logger, "输出一条 debug 日志到全局日志器");
         LOG_INFO(root_logger, "输出一条 info 日志到全局日志器");
         LOG_ERROR(root_logger, "输出一条 error 日志到全局日志器");
-        
+
         // auto event = MAKE_LOG_EVENT(meha::LogLevel::DEBUG, "输出一条 debug 日志");
         // global_logger->log(event);
         // root_logger->log(event);

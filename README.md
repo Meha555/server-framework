@@ -29,7 +29,11 @@
   - `LogAppenderConfig`：日志输出器的配置信息类
   - `LogEventWrapper`：日志的RAII风格打印（析构时打印日志）
   - 
-- 配置模块
+- 配置模块：用于定义/声明配置项，从配置文件中加载用户配置，并在配置发生变化时自动重新加载
+  - `ConfigItemBase`：所有配置项的虚基类，提供 `toString/fromString` 公共接口，定义了配置项的名字和描述
+  - `ConfigItem`：所有配置项的实现类（模板），配置项的值由模板形参决定，配有 `toString/fromString` 方法的实现
+  - `Config`：解析YAML文件，监听配置项更改，管理所有配置项的单例函数类（没有成员变量，所有的成员函数均为 `static`）
+  - `meha::lexical_cast`：封装 `boost::lexical_cast` 的类型转换函数为仿函数模板，并为各YAML数据类型特化自己的版本，从而实现YAML数据类型和 `string` 的相互转换，用于支撑实现 `toString/fromString` 方法
 - 
 
 

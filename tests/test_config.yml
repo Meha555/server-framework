@@ -1,9 +1,9 @@
-test_list:
+test_array:
   - 1
   - 2
   - 3
 
-test_linklist:
+test_list:
   - asdasd
   - asdasd
   - asdasd
@@ -25,7 +25,7 @@ user:
   goods:
     name: 《书》
     price: 99.99
-  goods_list:
+  goods_array:
     - name: 商品1
       price: 10
     - name: 商品2

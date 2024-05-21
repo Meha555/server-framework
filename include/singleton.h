@@ -9,7 +9,7 @@ namespace meha {
  * @brief 单例包装类
  * @details 调用 Singleton::GetInstance 返回被包装类型的原生指针
  */
-template <class T>
+template <typename T>
 class Singleton final {
 public:
     static T *GetInstance()
@@ -26,7 +26,7 @@ private:
  * @brief 单例包装类（要求被包装类型有默认构造函数）
  * @details Singleton::getInstance 返回被包装类型的 std::shared_ptr 智能指针
  */
-template <class T>
+template <typename T>
 class SingletonPtr final {
 public:
     static std::shared_ptr<T> getInstance()

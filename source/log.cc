@@ -7,8 +7,8 @@
 #include <sstream>
 
 #include <fmt/format.h>
-#include <unordered_map>
 
+#include "config.hpp"
 #include "exception.h"
 #include "log.h"
 
@@ -429,5 +429,82 @@ Logger::ptr __LoggerManager::getLogger(const std::string &name) const
 }
 
 Logger::ptr __LoggerManager::getRootLogger() const { return getLogger("root"); }
+
+struct LogIniter
+{
+    LogIniter()
+    {
+        auto log_config_list = meha::Config::Lookup<std::vector<LogConfig>>("logs", {}, "日志器的配置项");
+        // 注册日志器配置项变更时的事件处理回调：当配置项变动时，更新日志器
+        log_config_list->addListener([](const std::vector<LogConfig> &, const std::vector<LogConfig> &) {
+            std::cout << "日志器配置变动，更新日志器" << std::endl;
+            LoggerManager::getInstance()->init();
+        });
+    }
+};
+static LogIniter __log_init__;
+
+/**
+ * @brief lexical_cast 的偏特化
+ */
+template <>
+struct lexical_cast<std::string, std::vector<LogConfig>>
+{
+    std::vector<LogConfig> operator()(const std::string &source)
+    {
+        auto node = YAML::Load(source);
+        std::vector<LogConfig> result{};
+        if (node.IsSequence()) {
+            for (const auto log_config : node) {
+                LogConfig lc{};
+                lc.name = log_config["name"] ? log_config["name"].as<std::string>() : "";
+                lc.level = log_config["level"] ? (LogEvent::LogLevel::Level)(log_config["level"].as<int>())
+                                               : LogEvent::LogLevel::UNKNOWN;
+                lc.pattern = log_config["pattern"] ? log_config["pattern"].as<std::string>() : "";  // 日志器默认格式
+                if (log_config["appender"] && log_config["appender"].IsSequence()) {
+                    for (const auto app_config : log_config["appender"]) {
+                        LogAppenderConfig ac{};
+                        ac.type = static_cast<LogAppenderConfig::Type>(
+                            (app_config["type"] ? app_config["type"].as<int>() : 0));
+                        ac.file = app_config["file"] ? app_config["file"].as<std::string>() : "";
+                        ac.level = static_cast<LogEvent::LogLevel::Level>(
+                            app_config["level"] ? app_config["level"].as<int>() : lc.level);
+                        ac.pattern = app_config["pattern"] ? app_config["pattern"].as<std::string>() : lc.pattern;
+                        lc.appenders.push_back(ac);
+                    }
+                }
+                result.push_back(lc);
+            }
+        }
+        return result;
+    }
+};
+
+template <>
+struct lexical_cast<std::vector<LogConfig>, std::string>
+{
+    std::string operator()(const std::vector<LogConfig> &source)
+    {
+        YAML::Node node;
+        for (const auto &log_config : source) {
+            node["name"] = log_config.name;
+            node["level"] = (int)(log_config.level);
+            node["pattern"] = log_config.pattern;
+            YAML::Node app_list_node;
+            for (const auto &app_config : log_config.appenders) {
+                YAML::Node app_node;
+                app_node["type"] = (int)(app_config.type);
+                app_node["file"] = app_config.file;
+                app_node["level"] = (int)(app_config.level);
+                app_node["pattern"] = app_config.pattern;
+                app_list_node.push_back(app_node);
+            }
+            node["appender"] = app_list_node;
+        }
+        std::stringstream ss;
+        ss << node;
+        return ss.str();
+    }
+};
 
 }  // namespace meha

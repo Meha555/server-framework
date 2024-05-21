@@ -1,5 +1,5 @@
 #include "hook.h"
-#include "config.h"
+#include "config.hpp"
 #include "fd_manager.h"
 #include "io_manager.h"
 #include "log.h"
@@ -14,7 +14,7 @@ static thread_local bool t_hook_enabled = false;
 
 static Logger::ptr root_logger = GET_LOGGER("root");
 
-static meha::ConfigVar<int>::ptr g_tcp_connect_timeout = meha::Config::Lookup("tcp.connect.timeout", 5000);
+static meha::ConfigItem<int>::ptr g_tcp_connect_timeout = meha::Config::Lookup("tcp.connect.timeout", 5000);
 
 #define DEAL_FUNC(DO)                                                                                                  \
     DO(sleep)                                                                                                          \

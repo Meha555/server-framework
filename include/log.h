@@ -8,11 +8,11 @@
 #include <list>
 #include <memory>
 #include <ostream>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "config.h"
 #include "thread.h"
 #include "util.h"
 
@@ -87,9 +87,9 @@ struct LogEvent
     };
 
     LogEvent(const std::string &file,
-             const std::uint32_t line,
-             const std::uint32_t tid,
-             const std::uint32_t fid,
+             const uint32_t line,
+             const uint32_t tid,
+             const uint32_t fid,
              const LogLevel::Level level = LogLevel::DEBUG,
              const std::string &content = "")
         : level(level), file(file), line(line), thread_id(tid), fiber_id(fid),
@@ -100,9 +100,9 @@ struct LogEvent
 
     LogLevel::Level level;                                  // 日志等级
     const std::string file;                                 // 代码所在文件
-    const std::uint32_t line;                               // 代码行号
-    const std::uint32_t thread_id;                          // 线程ID
-    const std::uint32_t fiber_id;                           // 协程ID
+    const uint32_t line;                               // 代码行号
+    const uint32_t thread_id;                          // 线程ID
+    const uint32_t fiber_id;                           // 协程ID
     const std::chrono::system_clock::time_point timestamp;  // 当前时间戳
     // std::string content;                              // 日志内容
     std::stringstream m_ss;  // 日志流
@@ -258,20 +258,6 @@ private:
  */
 using LoggerManager = SingletonPtr<__LoggerManager>;
 
-struct LogIniter
-{
-    LogIniter()
-    {
-        auto log_config_list = meha::Config::Lookup<std::vector<LogConfig>>("logs", {}, "日志器的配置项");
-        // 注册日志器配置项变更时的事件处理回调：当配置项变动时，更新日志器
-        log_config_list->addListener([](const std::vector<LogConfig> &, const std::vector<LogConfig> &) {
-            std::cout << "日志器配置变动，更新日志器" << std::endl;
-            LoggerManager::getInstance()->init();
-        });
-    }
-};
-static LogIniter __log_init__;
-
 /**
  * @brief 日志器本身的配置信息类
  * @details 默认UNKNOWN等级
@@ -331,68 +317,10 @@ private:
     LogEvent::ptr m_event;  // 要打印的日志事件
 };
 
-// TODO 日志配置文件分析
-/**
- * @brief LexicalCast 的偏特化
- */
-template <>
-class LexicalCast<std::string, std::vector<LogConfig>> {
-public:
-    std::vector<LogConfig> operator()(const std::string &source)
-    {
-        auto node = YAML::Load(source);
-        std::vector<LogConfig> result{};
-        if (node.IsSequence()) {
-            for (const auto log_config : node) {
-                LogConfig lc{};
-                lc.name = log_config["name"] ? log_config["name"].as<std::string>() : "";
-                lc.level = log_config["level"] ? (LogEvent::LogLevel::Level)(log_config["level"].as<int>())
-                                               : LogEvent::LogLevel::UNKNOWN;
-                lc.pattern = log_config["pattern"] ? log_config["pattern"].as<std::string>() : "";
-                if (log_config["appender"] && log_config["appender"].IsSequence()) {
-                    for (const auto app_config : log_config["appender"]) {
-                        LogAppenderConfig ac{};
-                        ac.type = (LogAppenderConfig::Type)(app_config["type"] ? app_config["type"].as<int>() : 0);
-                        ac.file = app_config["file"] ? app_config["file"].as<std::string>() : "";
-                        ac.level =
-                            (LogEvent::LogLevel::Level)(app_config["level"] ? app_config["level"].as<int>() : lc.level);
-                        ac.pattern = app_config["pattern"] ? app_config["pattern"].as<std::string>() : lc.pattern;
-                        lc.appenders.push_back(ac);
-                    }
-                }
-                result.push_back(lc);
-            }
-        }
-        return result;
-    }
-};
+// extern template struct lexical_cast<std::string, std::vector<LogConfig>>;
+// extern template struct lexical_cast<std::vector<LogConfig>, std::string>;
 
-template <>
-class LexicalCast<std::vector<LogConfig>, std::string> {
-public:
-    std::string operator()(const std::vector<LogConfig> &source)
-    {
-        YAML::Node node;
-        for (const auto &log_config : source) {
-            node["name"] = log_config.name;
-            node["level"] = (int)(log_config.level);
-            node["pattern"] = log_config.pattern;
-            YAML::Node app_list_node;
-            for (const auto &app_config : log_config.appenders) {
-                YAML::Node app_node;
-                app_node["type"] = (int)(app_config.type);
-                app_node["file"] = app_config.file;
-                app_node["level"] = (int)(app_config.level);
-                app_node["pattern"] = app_config.pattern;
-                app_list_node.push_back(app_node);
-            }
-            node["appender"] = app_list_node;
-        }
-        std::stringstream ss;
-        ss << node;
-        return ss.str();
-    }
-};
+// TODO 日志配置文件分析
 
 }  // namespace meha
 

@@ -1,23 +1,21 @@
 #ifndef SERVER_FRAMEWORK_FIBER_H
 #define SERVER_FRAMEWORK_FIBER_H
 
-#include "config.h"
+#include "config.hpp"
 #include "thread.h"
 #include <atomic>
 #include <functional>
 #include <memory>
 #include <ucontext.h>
 
-namespace meha
-{
+namespace meha {
 
 class Scheduler;
 
 /**
  * @brief 协程类
  */
-class Fiber : public std::enable_shared_from_this<Fiber>, public meha::noncopyable
-{
+class Fiber : public std::enable_shared_from_this<Fiber>, public meha::noncopyable {
     friend class Scheduler;
 
 public:
@@ -28,12 +26,12 @@ public:
     // 协程状态，用于调度
     enum State
     {
-        INIT,     // 初始化
-        READY,    // 预备
-        HOLD,     // 挂起
-        EXEC,     // 执行
-        TERM,     // 结束
-        EXCEPTION // 异常
+        INIT,      // 初始化
+        READY,     // 预备
+        HOLD,      // 挂起
+        EXEC,      // 执行
+        TERM,      // 结束
+        EXCEPTION  // 异常
     };
 
 public:
@@ -90,7 +88,7 @@ public:
     // 获取当前正在执行的 fiber 的智能指针，如果不存在，则在当前线程上创建 master fiber
     static Fiber::ptr GetThis();
     // 设置当前 fiber
-    static void SetThis(Fiber* fiber);
+    static void SetThis(Fiber *fiber);
     // 挂起当前协程，转换为 READY 状态，等待下一次调度
     static void Yield();
     // 挂起当前协程，转换为 HOLD 状态，等待下一次调度
@@ -112,13 +110,12 @@ private:
     // 协程上下文
     ucontext_t m_ctx;
     // 协程栈空间指针
-    void* m_stack;
+    void *m_stack;
     // 协程执行函数
     FiberFunc m_callback;
 };
 
-namespace FiberInfo
-{
+namespace FiberInfo {
 
 // 最后一个协程的 id
 static std::atomic_uint64_t s_fiber_id{0};
@@ -126,15 +123,14 @@ static std::atomic_uint64_t s_fiber_id{0};
 static std::atomic_uint64_t s_fiber_count{0};
 
 // 当前线程正在执行的协程
-static thread_local Fiber* t_fiber = nullptr;
+static thread_local Fiber *t_fiber = nullptr;
 // 当前线程的主协程
 static thread_local Fiber::ptr t_master_fiber{};
 
 // 协程栈大小配置项
-static ConfigVar<uint64_t>::ptr g_fiber_stack_size =
-    Config::Lookup<uint64_t>("fiber.stack_size", 1024 * 1024);
-} // namespace FiberInfo
+static ConfigItem<uint64_t>::ptr g_fiber_stack_size = Config::Lookup<uint64_t>("fiber.stack_size", 1024 * 1024);
+}  // namespace FiberInfo
 
-} // namespace meha
+}  // namespace meha
 
 #endif

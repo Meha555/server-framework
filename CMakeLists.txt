@@ -8,7 +8,7 @@ option(CMAKE_VERBOSE_MAKEFILE ON)
 option(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BUILD_TYPE "Debug")
 
-add_definitions("-O0 -g -ggdb -Wno-unused-variable")
+add_definitions("-O0 -g -rdynamic -ggdb -Wno-unused-variable")
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)

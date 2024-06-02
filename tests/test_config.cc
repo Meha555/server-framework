@@ -11,7 +11,7 @@
 
 using namespace std;
 
-#define TEST_CAST ConfigTest
+#define TEST_CASE ConfigTest
 
 // 创建默认配置项
 auto config_system_port = meha::Config::Lookup<int>("system.port", 6666);

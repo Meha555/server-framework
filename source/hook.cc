@@ -88,7 +88,7 @@ doIO(int fd, OriginFunc func, const char *hook_func_name, uint32_t event, int fd
     // LOG_FMT_DEBUG(meha::root_logger, "doIO 代理执行系统函数 %s",
     // hook_func_name);
 
-    meha::FileDescriptor::ptr fdp = meha::FileDescriptorManager::getInstance()->get(fd);
+    meha::FileDescriptor::ptr fdp = meha::FileDescriptorManager::GetInstance()->get(fd);
     if (!fdp) {
         return func(fd, std::forward<Args>(args)...);
     }
@@ -221,7 +221,7 @@ int socket(int domain, int type, int protocol)
     if (fd == -1) {
         return fd;
     }
-    meha::FileDescriptorManager::getInstance()->get(fd, true);
+    meha::FileDescriptorManager::GetInstance()->get(fd, true);
     return fd;
 }
 
@@ -230,7 +230,7 @@ int connectWithTimeout(int sockfd, const struct sockaddr *addr, socklen_t addrle
     if (!meha::t_hook_enabled) {
         return connect_f(sockfd, addr, addrlen);
     }
-    auto fdp = meha::FileDescriptorManager::getInstance()->get(sockfd);
+    auto fdp = meha::FileDescriptorManager::GetInstance()->get(sockfd);
     if (!fdp || fdp->isClosed()) {
         errno = EBADF;
         return -1;
@@ -312,7 +312,7 @@ int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
     int fd = doIO(sockfd, accept_f, "accept", meha::FDEventType::READ, SO_RCVTIMEO, addr, addrlen);
     if (fd >= 0) {
-        meha::FileDescriptorManager::getInstance()->get(fd, true);
+        meha::FileDescriptorManager::GetInstance()->get(fd, true);
     }
     return fd;
 }
@@ -373,13 +373,13 @@ int close(int fd)
     if (!meha::t_hook_enabled) {
         return close_f(fd);
     }
-    meha::FileDescriptor::ptr fdp = meha::FileDescriptorManager::getInstance()->get(fd);
+    meha::FileDescriptor::ptr fdp = meha::FileDescriptorManager::GetInstance()->get(fd);
     if (fdp) {
         auto iom = meha::IOManager::GetThis();
         if (iom) {
             iom->cancelAll(fd);
         }
-        meha::FileDescriptorManager::getInstance()->remove(fd);
+        meha::FileDescriptorManager::GetInstance()->remove(fd);
     }
     return close_f(fd);
 }
@@ -395,7 +395,7 @@ int fcntl(int fd, int cmd, ... /* arg */)
     case F_SETFL: {
         int arg = va_arg(va, int);
         va_end(va);
-        auto fdp = meha::FileDescriptorManager::getInstance()->get(fd);
+        auto fdp = meha::FileDescriptorManager::GetInstance()->get(fd);
         if (!fdp || fdp->isClosed() || !fdp->isSocket()) {
             return fcntl_f(fd, cmd, arg);
         }
@@ -412,7 +412,7 @@ int fcntl(int fd, int cmd, ... /* arg */)
     case F_GETFL: {
         va_end(va);
         int arg = fcntl_f(fd, cmd);
-        auto fdp = meha::FileDescriptorManager::getInstance()->get(fd);
+        auto fdp = meha::FileDescriptorManager::GetInstance()->get(fd);
         if (!fdp || fdp->isClosed() || !fdp->isSocket()) {
             return arg;
         }
@@ -475,7 +475,7 @@ int ioctl(int fd, unsigned long request, ...)
 
     if (FIONBIO == request) {
         bool user_nonblock = !!*(int *)arg;
-        auto fdp = meha::FileDescriptorManager::getInstance()->get(fd);
+        auto fdp = meha::FileDescriptorManager::GetInstance()->get(fd);
         if (!fdp || fdp->isClosed() || !fdp->isSocket()) {
             return ioctl_f(fd, request, arg);
         }
@@ -497,7 +497,7 @@ int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t
     //
     if (level == SOL_SOCKET) {
         if (optname == SO_RCVTIMEO || optname == SO_SNDTIMEO) {
-            auto fdp = meha::FileDescriptorManager::getInstance()->get(sockfd);
+            auto fdp = meha::FileDescriptorManager::GetInstance()->get(sockfd);
             if (fdp) {
                 const timeval *v = static_cast<const timeval *>(optval);
                 fdp->setTimeout(optname, v->tv_sec * 1000 + v->tv_usec / 1000);

@@ -27,7 +27,7 @@ Scheduler::Scheduler(size_t thread_size, bool use_caller, std::string name) : m_
         t_scheduler = this;
         // 因为 Scheduler::run 是实例方法，需要用 std::bind 绑定调用者
         m_root_fiber = std::make_shared<Fiber>(std::bind(&Scheduler::run, this));
-        Thread::SetThisThreadName(m_name);
+        Thread::SetThisName(m_name);
         t_scheduler_fiber = m_root_fiber.get();
         m_root_thread_id = GetThreadID();
         m_thread_id_list.push_back(m_root_thread_id);
@@ -60,7 +60,8 @@ void Scheduler::start()
         for (size_t i = 0; i < m_thread_count; i++) {
             m_thread_list[i] =
                 std::make_shared<Thread>(std::bind(&Scheduler::run, this), m_name + "_" + std::to_string(i));
-            m_thread_id_list.push_back(m_thread_list[i]->getId());
+            // m_thread_id_list.push_back(m_thread_list[i]->getId());
+            m_thread_id_list.push_back(m_thread_list[i]->GetThisId());
         }
     }
     // m_root_fiber 存在就将它换入

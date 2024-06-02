@@ -15,26 +15,71 @@
 
 本项目编译生成静态库 `libconet.a`，测试代码在tests下面。
 
-### 模块及其内部组件
+### 日志模块
 
-- 日志模块：`Logger` 输出日志，是现场构造一个 `LogEvent` ，然后经过 `LogFormatter`，再由 `LogAppender` 输出到目的地
-  - `LogEvent`：封装后的日志消息（即日志的元数据）
-    - `LogLevel`：日志等级
-  - `LogFormatter`：日志格式化器
-  - `LogAppender`：日志输出器
-    - `StdoutLogAppender`：标准输出日志输出器
-    - `FileLogAppender`：文件日志输出器
-  - `Logger`：日志器，组合使用上述组件
-  - `LogConfig`：日志器配置信息类
-  - `LogAppenderConfig`：日志输出器的配置信息类
-  - `LogEventWrapper`：日志的RAII风格打印（析构时打印日志）
-  - 
-- 配置模块：用于定义/声明配置项，从配置文件中加载用户配置，并在配置发生变化时自动重新加载
-  - `ConfigItemBase`：所有配置项的虚基类，提供 `toString/fromString` 公共接口，定义了配置项的名字和描述
-  - `ConfigItem`：所有配置项的实现类（模板），配置项的值由模板形参决定，配有 `toString/fromString` 方法的实现
-  - `Config`：解析YAML文件，监听配置项更改，管理所有配置项的单例函数类（没有成员变量，所有的成员函数均为 `static`）
-  - `meha::lexical_cast`：封装 `boost::lexical_cast` 的类型转换函数为仿函数模板，并为各YAML数据类型特化自己的版本，从而实现YAML数据类型和 `string` 的相互转换，用于支撑实现 `toString/fromString` 方法
-- 
+日志模块：`Logger` 输出日志，是现场构造一个 `LogEvent` ，然后经过 `LogFormatter`，再由 `LogAppender` 输出到目的地。
+
+- `LogEvent`：封装后的日志消息（即日志的元数据）
+  - `LogLevel`：日志等级
+- `LogFormatter`：日志格式化器
+- `LogAppender`：日志输出器
+  - `StdoutLogAppender`：标准输出日志输出器
+  - `FileLogAppender`：文件日志输出器
+- `Logger`：日志器，组合使用上述组件
+- `LogConfig`：日志器配置信息类
+- `LogAppenderConfig`：日志输出器的配置信息类
+- `LogEventWrapper`：日志的RAII风格打印（析构时打印日志）
+
+### 配置模块
+
+用于定义/声明配置项，从配置文件中加载用户配置，并在配置发生变化时自动重新加载
+
+- `ConfigItemBase`：所有配置项的虚基类，提供 `toString/fromString` 公共接口，定义了配置项的名字和描述
+- `ConfigItem`：所有配置项的实现类（模板），配置项的值由模板形参决定，配有 `toString/fromString` 方法的实现
+- `Config`：解析YAML文件，监听配置项更改，管理所有配置项的单例函数类（没有成员变量，所有的成员函数均为 `static`）
+- `meha::lexical_cast`：封装 `boost::lexical_cast` 的类型转换函数为仿函数模板，并为各YAML数据类型特化实现自己的版本，从而实现YAML数据类型和 `string` 的相互转换，用于支撑实现 `toString/fromString` 方法
+
+- [ ] 加入命令行参数
+- [ ] 添加正则匹配
+
+### 线程模块
+
+> 为什么不直接使用C++11提供的thread类。按sylar的描述，因为thread其实也是基于pthread实现的。并且C++11里面没有提供读写互斥量，RWMutex，Spinlock等，在高并发场景，这些对象是经常需要用到的，所以选择自己封装pthread。
+
+`Thread`：线程类，构造函数传入线程入口函数和线程名称，线程入口函数类型为void()，如果带参数，则需要用`std::bind`进行绑定。线程类构造之后线程即开始运行，构造函数在线程真正开始运行之后返回。
+
+线程同步类（这部分被拆分到mutex.h)中：
+
+- `Semaphore`: 计数信号量，基于`sem_t`实现
+- `Mutex`: 互斥锁，基于`pthread_mutex_t`实现
+- `RWMutex`: 读写锁，基于`pthread_rwlock_t`实现
+- `Spinlock`: 自旋锁，基于`pthread_spinlock_t`实现
+- `CASLock`: 原子锁，基于`std::atomic_flag`实现
+
+注意：
+
+- 关于线程入口函数。sylar的线程只支持void(void)类型的入口函数，不支持给线程传参数，但实际使用时可以结合`std::bind`来绑定参数，这样就相当于支持任何类型和数量的参数。
+
+- 关于子线程的执行时机。sylar的线程类可以保证在构造完成之后线程函数一定已经处于运行状态，这是通过一个信号量来实现的，构造函数在创建线程后会一直阻塞，直到线程函数运行并且通知信号量，构造函数才会返回，而构造函数一旦返回，就说明线程函数已经在执行了。
+
+- 关于线程局部变量。sylar的每个线程都有两个线程局部变量，一个用于存储当前线程的Thread指针，另一个存储线程名称，通过Thread::GetThis()可以拿到当前线程的指针。一般都要求线程有名称
+
+- 关于范围锁。sylar大量使用了范围锁来实现互斥，范围锁是指用类的构造函数来加锁，用析造函数来释放锁。这种RAII方式可以简化锁的操作，也可以避免忘记解锁导致的死锁问题，以下是一个范围锁的示例和说明：
+
+  ```cpp
+  sylar::Mutex mutex;
+  {
+      sylar::Mutex::Lock lock(mutex); // 定义lock对象，类型为sylar::Mutex::Lock，传入互斥量，在构造函数中完成加锁操作，如果该锁已经被持有，那构造lock时就会阻塞，直到锁被释放
+      //临界区操作
+      ...
+      // 大括号范围结束，所有在该范围内定义的自动变量都会被回收，lock对象被回收时触发析构函数，在析构函数中释放锁
+  }
+  ```
+
+- [ ] 线程池（sylar没做线程池是由于该框架主要用协程做高并发的任务）
+
+### 协程模块
+
 
 
 ## 杂谈

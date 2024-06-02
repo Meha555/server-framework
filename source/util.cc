@@ -1,35 +1,35 @@
 #include "util.h"
 #include "fiber.h"
+#include "log.h"
 #include <cxxabi.h>
 #include <execinfo.h>
 #include <iostream>
 #include <sys/time.h>
 
+namespace meha {
 
-namespace meha
-{
-
+// 获得top命令中展示的Linux线程ID
 long GetThreadID()
 {
-    return ::syscall(SYS_gettid);
+    long tid = ::syscall(SYS_gettid);
+    if (tid == -1) {
+        LOG_FMT_FATAL(GET_ROOT_LOGGER(), "获取系统线程 tid 失败：%s", ::strerror(errno));
+        throw std::system_error();
+    }
+    return tid;
 }
 
-uint64_t GetFiberID()
-{
-    return Fiber::GetFiberID();
-}
+uint64_t GetFiberID() { return Fiber::GetFiberID(); }
 
-void Backtrace(std::vector<std::string>& out, int size, int skip)
+void Backtrace(std::vector<std::string> &out, int size, int skip)
 {
-    void** void_ptr_list = (void**)malloc(sizeof(void*) * size);
+    void **void_ptr_list = (void **)malloc(sizeof(void *) * size);
     int call_stack_count = ::backtrace(void_ptr_list, size);
-    char** string_list = ::backtrace_symbols(void_ptr_list, call_stack_count);
-    if (string_list == NULL)
-    {
+    char **string_list = ::backtrace_symbols(void_ptr_list, call_stack_count);
+    if (string_list == NULL) {
         std::cerr << "Backtrace() exception, 调用栈获取失败" << std::endl;
     }
-    for (int i = skip; string_list && i < call_stack_count; i++)
-    {
+    for (int i = skip; string_list && i < call_stack_count; i++) {
         /**
          * 解码类型信息
          * 例如一个栈信息 ./test_exception(_Z2fni+0x62) [0x564e8a313317]
@@ -37,12 +37,11 @@ void Backtrace(std::vector<std::string>& out, int size, int skip)
          * 调用 abi::__cxa_demangle 进行编码转换
          */
         std::stringstream ss;
-        char* str = string_list[i];
-        char* brackets_pos = nullptr;
-        char* plus_pos = nullptr;
+        char *str = string_list[i];
+        char *brackets_pos = nullptr;
+        char *plus_pos = nullptr;
         // 找到左括号的位置
-        for (brackets_pos = str; *brackets_pos != '(' && *brackets_pos; brackets_pos++)
-        { /* do nothing */
+        for (brackets_pos = str; *brackets_pos != '(' && *brackets_pos; brackets_pos++) { /* do nothing */
         }
         assert(*brackets_pos == '(');
         // 先把到左括号的字符串塞进字符串流里
@@ -50,13 +49,11 @@ void Backtrace(std::vector<std::string>& out, int size, int skip)
         ss << string_list[i] << '(';
         *brackets_pos = '(';
         // 找到加号的位置
-        for (plus_pos = brackets_pos; *plus_pos != '+' && *plus_pos; plus_pos++)
-        { /* do nothing */
+        for (plus_pos = brackets_pos; *plus_pos != '+' && *plus_pos; plus_pos++) { /* do nothing */
         }
         // 解析类型信息
-        char* type = nullptr;
-        if (*brackets_pos + 1 != *plus_pos)
-        {
+        char *type = nullptr;
+        if (*brackets_pos + 1 != *plus_pos) {
             *plus_pos = '\0';
             int status = 0;
             type = abi::__cxa_demangle(brackets_pos + 1, nullptr, nullptr, &status);
@@ -80,8 +77,7 @@ std::string BacktraceToString(int size, int skip)
     std::vector<std::string> call_stack;
     Backtrace(call_stack, size, skip);
     std::stringstream ss;
-    for (const auto& item : call_stack)
-    {
+    for (const auto &item : call_stack) {
         ss << item << std::endl;
     }
     return ss.str();
@@ -101,4 +97,4 @@ uint64_t GetCurrentUS()
     return tv.tv_sec * 1000ul * 1000ul + tv.tv_usec;
 }
 
-} // namespace meha
+}  // namespace meha

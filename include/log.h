@@ -13,11 +13,11 @@
 #include <unordered_map>
 #include <vector>
 
-#include "thread.h"
+#include "mutex.hpp"
 #include "util.h"
 
-#define GET_ROOT_LOGGER() meha::LoggerManager::getInstance()->getRootLogger()
-#define GET_LOGGER(name)  meha::LoggerManager::getInstance()->getLogger(name)
+#define GET_ROOT_LOGGER() meha::LoggerManager::GetInstance()->getRootLogger()
+#define GET_LOGGER(name)  meha::LoggerManager::GetInstance()->getLogger(name)
 
 // 生成一个LogEvent::ptr的宏
 #define MAKE_LOG_EVENT(level, message)                                                                                 \
@@ -100,9 +100,9 @@ struct LogEvent
 
     LogLevel::Level level;                                  // 日志等级
     const std::string file;                                 // 代码所在文件
-    const uint32_t line;                               // 代码行号
-    const uint32_t thread_id;                          // 线程ID
-    const uint32_t fiber_id;                           // 协程ID
+    const uint32_t line;                                    // 代码行号
+    const uint32_t thread_id;                               // 线程ID
+    const uint32_t fiber_id;                                // 协程ID
     const std::chrono::system_clock::time_point timestamp;  // 当前时间戳
     // std::string content;                              // 日志内容
     std::stringstream m_ss;  // 日志流
@@ -175,6 +175,7 @@ public:
 
 /**
  * @brief 输出到文件的LogAppender
+ * TODO 添加c++17 filesystem和fd的支持
  */
 class FileLogAppender : public LogAppender {
 public:
@@ -316,6 +317,13 @@ private:
     Logger::ptr m_logger;   // 使用的日志器
     LogEvent::ptr m_event;  // 要打印的日志事件
 };
+
+struct LogIniter
+{
+    explicit LogIniter();
+};
+//REVIEW - 未解之谜：为什么LogInter的静态全局对象必须放在log.h中，如果放在log.cc中，则test_thread就会段错误？
+static LogIniter __log_init__;
 
 // extern template struct lexical_cast<std::string, std::vector<LogConfig>>;
 // extern template struct lexical_cast<std::vector<LogConfig>, std::string>;

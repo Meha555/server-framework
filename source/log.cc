@@ -273,7 +273,27 @@ void StdoutLogAppender::log(const LogEvent::LogLevel::Level level, const LogEven
     if (level < m_base_level)
         return;
     ScopedLock lock(&m_mutex);
-    std::cout << m_formatter->format(event);
+    static const char *color = nullptr;
+    switch (level) {
+    case LogEvent::LogLevel::DEBUG:
+        color = "\033[0;34m";
+        break;
+    case LogEvent::LogLevel::INFO:
+        color = "\033[0;32m";
+        break;
+    case LogEvent::LogLevel::WARN:
+        color = "\033[0;33m";
+        break;
+    case LogEvent::LogLevel::ERROR:
+        color = "\033[0;31m";
+        break;
+    case LogEvent::LogLevel::FATAL:
+        color = "\033[1;41;33m";
+        break;
+    default:
+        color = "\033[0m";
+    }
+    std::cout << fmt::format("{}{}\033[0m", color, m_formatter->format(event));
     std::cout.flush();
 }
 
@@ -285,7 +305,7 @@ FileLogAppender::FileLogAppender(const std::string &filename, LogEvent::LogLevel
     openFile();
 }
 
-// NOTE 不能关了文件，因为其他日志输出器可能也在用这个文件
+// NOTE 不能关了文件，因为其他日志输出器可能也在用这个文件（需不需要管这个问题，ofs有像fd那样的引用计数吗）
 // FileLogAppender::~FileLogAppender() override {
 //     if (!m_ofstream) {
 //         m_ofstream.close();
@@ -397,8 +417,9 @@ void __LoggerManager::init()
                 appender = std::make_shared<FileLogAppender>(config_app.file, config_app.level);
                 break;
             default:
-                std::cerr << "LoggerManager::init exception 无效的 appender 配置值，appender.type=" << config_app.type
-                          << std::endl;
+                LOG_FMT_ERROR(GET_ROOT_LOGGER(),
+                              "LoggerManager::init exception 无效的 appender 配置值，appender.type= %s",
+                              config_app.type ? "FILE" : "STDOUT");
                 break;
             }
             // 如果定义了 appender 的日志格式，为其创建专属的 formatter
@@ -430,19 +451,15 @@ Logger::ptr __LoggerManager::getLogger(const std::string &name) const
 
 Logger::ptr __LoggerManager::getRootLogger() const { return getLogger("root"); }
 
-struct LogIniter
+LogIniter::LogIniter()
 {
-    LogIniter()
-    {
-        auto log_config_list = meha::Config::Lookup<std::vector<LogConfig>>("logs", {}, "日志器的配置项");
-        // 注册日志器配置项变更时的事件处理回调：当配置项变动时，更新日志器
-        log_config_list->addListener([](const std::vector<LogConfig> &, const std::vector<LogConfig> &) {
-            std::cout << "日志器配置变动，更新日志器" << std::endl;
-            LoggerManager::getInstance()->init();
-        });
-    }
-};
-static LogIniter __log_init__;
+    auto log_config_list = meha::Config::Lookup<std::vector<LogConfig>>("logs", {}, "日志器的配置项");
+    // 注册日志器配置项变更时的事件处理回调：当配置项变动时，更新日志器
+    log_config_list->addListener([](const std::vector<LogConfig> &, const std::vector<LogConfig> &) {
+        std::cout << "日志器配置变动，更新日志器" << std::endl;
+        LoggerManager::GetInstance()->init();
+    });
+}
 
 /**
  * @brief lexical_cast 的偏特化

@@ -1,6 +1,6 @@
 # logs 配置格式
 # logs:
-#   - name:      [日志名称]
+#   - category:      [日志类别]
 #     level:     [日志等级，可选类型为 0: unknow, 1: debug, 2: info, 3: warn, 4: error, 5: fatal]
 #     pattern:   [日志打印格式，支持以下特殊符号：
 #                   %p    日志等级
@@ -21,7 +21,7 @@
 #         pattern:   [可选配置，日志打印格式，若没提供则继承所在 log 的 pattern]
 
 logs:
-  - name: global
+  - category: root
     level: 1
     pattern: "[%d] [%p] [%f:%l]%T%m%n"
     appender:
@@ -29,7 +29,7 @@ logs:
         level: 2
         file: /home/log/sftest_root_log.txt
       - type: 0
-  - name: system
+  - category: system
     level: 4
     pattern: "[%d] [%p] [%f]%T%m%n"
     appender:

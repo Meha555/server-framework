@@ -1,5 +1,6 @@
-#ifndef SERVER_FRAMEWORK_ADDRESS_H
-#define SERVER_FRAMEWORK_ADDRESS_H
+// #ifndef SERVER_FRAMEWORK_ADDRESS_H
+// #define SERVER_FRAMEWORK_ADDRESS_H
+#pragma once
 
 #include <iostream>
 #include <memory>
@@ -191,4 +192,4 @@ private:
 
 } // namespace meha
 
-#endif
+// #endif

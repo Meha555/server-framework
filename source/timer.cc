@@ -33,7 +33,7 @@ Timer::Timer(
       m_fn(fn),
       m_manager(manager)
 {
-    m_next = GetCurrentMS() + m_ms;
+    m_next = GetCurrentMS().count(); + m_ms;
 }
 
 Timer::Timer(uint64_t next) : m_next(next)
@@ -74,7 +74,7 @@ bool Timer::reset(uint64_t ms, bool from_now)
     // 重新计时
     if (from_now)
     {
-        start = GetCurrentMS();
+        start = GetCurrentMS().count();;
     }
     else
     {
@@ -100,14 +100,14 @@ bool Timer::refresh()
         return false;
     }
     m_manager->m_timers.erase(it);
-    m_next = GetCurrentMS() + m_ms;
+    m_next = GetCurrentMS().count(); + m_ms;
     m_manager->m_timers.insert(shared_from_this());
     return true;
 }
 
 TimerManager::TimerManager()
 {
-    m_previous_time = GetCurrentMS();
+    m_previous_time = GetCurrentMS().count();;
 }
 
 TimerManager::~TimerManager()
@@ -159,7 +159,7 @@ uint64_t TimerManager::getNextTimer()
         return ~0ull;
     }
     const Timer::ptr& next = *m_timers.begin();
-    uint64_t now_ms = GetCurrentMS();
+    uint64_t now_ms = GetCurrentMS().count();
     if (now_ms >= next->m_next)
     {
         // 等待超时
@@ -174,7 +174,7 @@ uint64_t TimerManager::getNextTimer()
 
 void TimerManager::listExpiredCallback(std::vector<std::function<void()>>& fns)
 {
-    uint64_t now_ms = GetCurrentMS();
+    uint64_t now_ms = GetCurrentMS().count();
     std::vector<Timer::ptr> expired;
     {
         ReadScopedLock lock(&m_lock);

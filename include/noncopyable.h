@@ -12,7 +12,7 @@ public:
     noncopyable(const noncopyable &) = delete;
     noncopyable &operator=(const noncopyable &) = delete;
 
-protected:
+protected: // 设置为protected是说明这个类仅用于做虚基类，不能用于创建对象
     noncopyable() = default;
     ~noncopyable() = default;
 };

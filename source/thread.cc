@@ -1,8 +1,8 @@
 #include "thread.h"
 #include "log.h"
+#include "mutex.hpp"
+#include "sem.h"
 #include "util.h"
-#include <cassert>
-#include <cstring>
 #include <exception>
 
 // FIXME - 这些底层库的失败和异常的处理，应该怎么做？是不是可以参考一下Java
@@ -11,60 +11,107 @@ namespace meha {
 
 #define DEFAULT_THREAD_NAME "UNNAMED_THREAD"
 
-/**
- * 线程局部变量
- */
-// 记录当前线程的 Thread 实例的指针，如果不是我们用Thread创还能的线程，这个指针变量就是初值nullptr
-static thread_local Thread *s_this_thread = nullptr;
-static thread_local pid_t s_this_tid = 0;
-// 记录当前线程的线程名
-static thread_local std::string s_this_tname = DEFAULT_THREAD_NAME;
-
 static Logger::ptr root_logger = GET_LOGGER("root");
 
-Semaphore::Semaphore(uint32_t count)
+/* --------------------------------- 线程局部变量 --------------------------------- */
+
+// 当前线程的 Thread 实例的指针，如果不是我们用Thread创建线程，这个指针变量就是初值nullptr
+static thread_local Thread *t_this_thread{nullptr};
+static thread_local pid_t t_this_tid{0};
+// 当前线程的线程名
+static thread_local std::string_view t_this_tname{DEFAULT_THREAD_NAME};
+
+/* ------------------------------------ 锁 ----------------------------------- */
+
+Mutex::Mutex()
 {
-    if (sem_init(&m_semaphore, 0, count)) {
-        LOG_FMT_FATAL(root_logger, "sem_init() 初始化信号量失败：%s", ::strerror(errno));
-        throw std::system_error();  // FIXME 有观点认为构造函数最好不要抛出异常
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);  //同线程可重入（多次上锁而不死锁）
+    if (pthread_mutex_init(&m_mutex, &attr)) {
+        LOG_FMT_FATAL(GET_ROOT_LOGGER(), "pthread_mutex_init() 失败：%s", ::strerror(errno));
+    }
+}
+Mutex::~Mutex() { pthread_mutex_destroy(&m_mutex); }
+
+int Mutex::lock() noexcept { return pthread_mutex_lock(&m_mutex); }
+int Mutex::unlock() noexcept { return pthread_mutex_unlock(&m_mutex); }
+
+RWLock::RWLock()
+{
+    if (pthread_rwlock_init(&m_lock, nullptr)) {
+        LOG_FMT_FATAL(GET_ROOT_LOGGER(), "pthread_rwlock_init() 失败：%s", ::strerror(errno));
     }
 }
 
-Semaphore::~Semaphore()
+RWLock::~RWLock()
 {
-    if (sem_destroy(&m_semaphore)) {
-        LOG_FMT_FATAL(root_logger, "sem_destroy() 销毁信号量失败：%s", ::strerror(errno));
+    if (pthread_rwlock_destroy(&m_lock)) {
+        LOG_FMT_FATAL(GET_ROOT_LOGGER(), "pthread_rwlock_destroy() 失败：%s", ::strerror(errno));
     }
 }
 
-void Semaphore::wait()
+int RWLock::readLock() noexcept
 {
-    if (sem_wait(&m_semaphore)) {
-        LOG_FMT_FATAL(root_logger, "sem_wait() 异常：%s", ::strerror(errno));
-        throw std::system_error();
-        // TODO 失败时是否应该直接结束程序？
+    int ret = pthread_rwlock_rdlock(&m_lock);
+    if (ret) {
+        LOG_FMT_FATAL(GET_ROOT_LOGGER(), "pthread_rwlock_rdlock() 失败：%s", ::strerror(errno));
     }
+    return ret;
 }
 
-void Semaphore::post()
+int RWLock::writeLock() noexcept
 {
-    if (sem_post(&m_semaphore)) {
-        LOG_FMT_FATAL(root_logger, "sem_post() 异常：%s", ::strerror(errno));
-        throw std::system_error();
+    int ret = pthread_rwlock_wrlock(&m_lock);
+    if (ret) {
+        fprintf(stderr, "pthread_rwlock_wrlock() 失败：%s", ::strerror(errno));
     }
+    return ret;
 }
 
-Thread::Thread(ThreadFunc callback, const std::string &name)
-    : m_tname(name), m_thread(0), m_callback(std::move(callback)), m_sem_sync(0), m_started(true), m_joined(false)
+int RWLock::unlock() noexcept
 {
-    SetThisName(name);
-    int ret = pthread_create(&m_thread, nullptr, &Thread::Run, this);
+    int ret = pthread_rwlock_unlock(&m_lock);
+    if (ret) {
+        fprintf(stderr, "pthread_rwlock_unlock() 失败：%s", ::strerror(errno));
+    }
+    return ret;
+}
+
+SpinLock::SpinLock() { pthread_spin_init(&m_mutex, 0); }
+SpinLock::~SpinLock() { pthread_spin_destroy(&m_mutex); }
+
+void SpinLock::lock() noexcept { pthread_spin_lock(&m_mutex); }
+void SpinLock::unlock() noexcept { pthread_spin_unlock(&m_mutex); }
+
+CASLock::CASLock() { m_mutex.clear(); }
+void CASLock::lock() noexcept
+{
+    // atomic_flag_test_and_set_explicit是test_and_set成员函数对C的兼容版本
+    while (std::atomic_flag_test_and_set_explicit(&m_mutex, std::memory_order_acquire))
+        ;
+}
+void CASLock::unlock() noexcept { std::atomic_flag_clear_explicit(&m_mutex, std::memory_order_release); }
+
+/* ----------------------------------- 线程 ----------------------------------- */
+
+Thread::Thread(ThreadFunc callback, const std::string_view &name)
+    : m_thread(0),
+      m_callback(std::move(callback)),
+      m_sem_sync(0),
+      m_started(true),
+      m_joined(false)
+{
+    LOG_FMT_DEBUG(GET_ROOT_LOGGER(), "创建线程%s[%d]", name.data(), GetThreadID());
+    SetCurrentName(name);
+    ThreadClosure *closure = new ThreadClosure(name, callback, this);
+    int ret = pthread_create(&m_thread, nullptr, &Thread::Run, closure);
     if (ret) {  // 创建线程失败
-        s_this_thread = nullptr;
-        s_this_tid = -1;
-        s_this_tname = DEFAULT_THREAD_NAME;
-        LOG_FMT_FATAL(root_logger, "pthread_create() 创建线程 %s 失败：%s", name.c_str(), ::strerror(errno));
-        throw std::system_error();
+        t_this_thread = nullptr;
+        t_this_tid = -1;
+        t_this_tname = DEFAULT_THREAD_NAME;
+        delete closure;
+        ASSERT_FMT(ret == 0, "创建线程 %s 失败：%s", name.data(), strerror(errno));
     } else {  // 创建线程成功
               //注意这里是在主线程中，先让主线程停住，因为要为子线程绑定ID、设置名字之类，而我采用的是thread_local变量来存储的，因此需要在子线程来设置
         m_sem_sync.wait();
@@ -73,6 +120,7 @@ Thread::Thread(ThreadFunc callback, const std::string &name)
 
 Thread::~Thread()
 {
+    LOG_FMT_DEBUG(GET_ROOT_LOGGER(), "分离线程%s[%d]", GetCurrentName().data(), GetThreadID());
     // POSIX线程的一个特点是：除非线程是被分离了的，否则在线程退出时，它的资源是不会被释放的，需要调用pthread_join回收，在其所属进程退出后，才释放所有资源。
     // 而我们不希望阻塞主线程，因此这里用detach
     //  如果线程有效且不为join，将线程与主线程分离
@@ -81,13 +129,13 @@ Thread::~Thread()
     }
 }
 
-Thread *Thread::GetThis() { return s_this_thread; }
+Thread *Thread::GetThis() { return t_this_thread; }
 
-pid_t Thread::GetThisId() { return s_this_tid; }
+pid_t Thread::GetCurrentId() { return t_this_tid; }
 
-const std::string &Thread::GetThisName() { return s_this_tname; }
+const std::string_view &Thread::GetCurrentName() { return t_this_tname; }
 
-void Thread::SetThisName(const std::string &name) { s_this_tname = name.empty() ? DEFAULT_THREAD_NAME : name; }
+void Thread::SetCurrentName(const std::string_view &name) { t_this_tname = name.empty() ? DEFAULT_THREAD_NAME : name; }
 
 void Thread::join()
 {
@@ -97,9 +145,9 @@ void Thread::join()
     int ret = pthread_join(m_thread, nullptr);
     if (ret) {
         LOG_FMT_FATAL(root_logger,
-                      "pthread_join() 等待线程 %s[#%d] 失败：%s",
-                      GetThisName().c_str(),
-                      GetThisId(),
+                      "pthread_join() 等待线程 %s[%d] 失败：%s",
+                      GetCurrentName().data(),
+                      GetCurrentId(),
                       ::strerror(errno));
         throw std::system_error();
     }
@@ -108,83 +156,31 @@ void Thread::join()
 void *Thread::Run(void *args)
 {
     // 这个函数就是在子线程中
-    s_this_thread = static_cast<Thread *>(args);
-    try {
-        // 设置线程ID
-        s_this_tid = GetThreadID();
-        // 设置线程名字
-        s_this_tname = s_this_thread->m_tname;
-        pthread_setname_np(s_this_thread->m_thread, s_this_tname.substr(0, 15).c_str());
-
-        // REVIEW 这里针对线程函数使用swap，目的是防止线程函数中使用了智能指针导致的一些引用计数问题
-        // ThreadFunc worker;
-        // worker.swap(s_this_thread->m_callback);
-
-        s_this_thread->m_sem_sync.post();  // 启动被暂停的主线程，开始并发执行
-        s_this_thread->m_callback();       // 执行工作函数
-    } catch (const std::exception &e) {
-        LOG_FMT_FATAL(root_logger, "线程 %s[#%d] 执行异常, 原因：%s", s_this_tname.c_str(), s_this_tid, e.what());
-        ::abort();
-    }
+    auto closure = static_cast<ThreadClosure *>(args);
+    closure->runInThread();
+    delete closure;
     return EXIT_SUCCESS;
 }
 
-// Thread::Thread(ThreadFunc callback, const std::string &name)
-//     : m_tid(-1), m_tname(name), m_thread(0), m_callback(callback), m_sem_sync(0), m_started(true), m_joined(false)
-// {
-//     // 调用 pthread_create 创建新线程
-//     ThreadClosure *data =
-//         new ThreadClosure(&m_tid, m_tname, m_callback, &m_sem_sync);  // 这个资源将在runInThread()中的unique_ptr托管
-//     int result =
-//         pthread_create(&m_thread, nullptr, &Thread::Run, data);  //因为Run要取地址，这就是为什么需要是static函数
-//     if (result) {                                                // 创建线程失败
-//         m_started = false;
-//         s_this_thread = nullptr;
-//         delete data;
-//         LOG_FMT_FATAL(root_logger,
-//                       "pthread_create() 线程创建失败, 线程名 = %s, 错误码 = %s(%d)",
-//                       name.c_str(),
-//                       ::strerror(result),
-//                       result);
-//         throw std::system_error();
-//     } else {  // 创建线程成功
-//         s_this_thread = this;
-//         // 等待子线程启动
-//         m_sem_sync.wait();
-//         // m_id 储存系统线程 id, 如果小于0，说明线程启动失败
-//         assert(m_tid > 0);
-//     }
-// }
+void Thread::ThreadClosure::runInThread()
+{
+    t_this_thread = static_cast<Thread *>(user_data);
+    t_this_tid = GetThreadID();
+    t_this_tname = name;
+    pthread_setname_np(t_this_thread->m_thread, t_this_tname.substr(0, 15).data());
 
-// void *Thread::Run(void *arg)
-// {
-//     std::unique_ptr<ThreadClosure> data((ThreadClosure *)arg);  // 使用unique_ptr自动管理ThreadClosure指针的资源
-//     data->runInThread();
-//     return EXIT_SUCCESS;
-// }
+    // REVIEW 这里针对线程函数使用swap，目的是防止线程函数中使用了智能指针导致的一些引用计数问题
+    ThreadFunc worker;
+    worker.swap(t_this_thread->m_callback);
 
-// Thread::ThreadClosure::ThreadClosure(pid_t *tid, const std::string &name, ThreadFunc func, Semaphore *sem)
-//     : m_tid(tid), m_tname(name), m_callback(std::move(func)), m_sem_sync(sem)
-// // REVIEW 这里针对线程函数使用了移动（sylar中使用的是swap），目的是防止线程函数中使用了智能指针导致的一些引用计数问题
-// {}
+    try {
+        t_this_thread->m_sem_sync.post();  // 启动被暂停的主线程，开始并发执行
+        // std::function的swap函数是移动语义的实现之一，这里存在移后源对象不能使用的问题
+        worker();  // 执行工作函数 可以试试用t_this_thread->m_callback();
+    } catch (const std::exception &e) {
+        LOG_FMT_FATAL(root_logger, "线程 %s[%d] 执行异常, 原因：%s", t_this_tname.data(), t_this_tid, e.what());
+        ::abort();
+    }
+}
 
-// void Thread::ThreadClosure::runInThread()
-// {
-//     // 获取系统线程 id
-//     *m_tid = GetThreadID();
-//     m_tid = nullptr;
-//     // 信号量 +1，通知主线程，子线程启动成功
-//     m_sem_sync->post();
-//     m_sem_sync = nullptr;
-//     s_this_tid = GetThreadID();
-//     s_this_tname = m_tname.empty() ? DEFAULT_THREAD_NAME : m_tname;
-//     // 设置线程的名字，要求name的buffer空间不能超过16个字节，不然会报错 ERANGE
-//     pthread_setname_np(pthread_self(), m_tname.substr(0, 15).c_str());
-//     try {
-//         m_callback();
-//     } catch (const std::exception &e) {
-//         LOG_FMT_FATAL(root_logger, "线程执行异常，name = %s, 原因：%s", m_tname.c_str(), e.what());
-//         ::abort();
-//     }
-// }
 }  // namespace meha

@@ -172,7 +172,7 @@ unsigned int sleep(unsigned int seconds)
     if (!meha::t_hook_enabled) {
         return sleep_f(seconds);
     }
-    meha::Fiber::ptr fiber = meha::Fiber::GetThis();
+    meha::Fiber::sptr fiber = meha::Fiber::GetThis();
     auto iom = meha::IOManager::GetThis();
     assert(iom != nullptr && "这里的 IOManager 指针不可为空");
     iom->addTimer(seconds * 1000, [iom, fiber]() { iom->schedule(fiber); });
@@ -188,7 +188,7 @@ int usleep(useconds_t usec)
     if (!meha::t_hook_enabled) {
         return usleep_f(usec);
     }
-    meha::Fiber::ptr fiber = meha::Fiber::GetThis();
+    meha::Fiber::sptr fiber = meha::Fiber::GetThis();
     auto iom = meha::IOManager::GetThis();
     assert(iom != nullptr && "这里的 IOManager 指针不可为空");
     iom->addTimer(usec / 1000, [iom, fiber]() { iom->schedule(fiber); });
@@ -202,7 +202,7 @@ int nanosleep(const struct timespec *req, struct timespec *rem)
         return nanosleep_f(req, rem);
     }
     int timeout_ms = req->tv_sec * 1000 + req->tv_nsec / 1000 / 1000;
-    meha::Fiber::ptr fiber = meha::Fiber::GetThis();
+    meha::Fiber::sptr fiber = meha::Fiber::GetThis();
     auto iom = meha::IOManager::GetThis();
     assert(iom != nullptr && "这里的 IOManager 指针不可为空");
     iom->addTimer(timeout_ms, [iom, fiber]() { iom->schedule(fiber); });

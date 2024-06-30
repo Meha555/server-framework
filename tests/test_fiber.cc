@@ -1,65 +1,56 @@
 #include "fiber.h"
-#include <array>
-#include <cstdio>
-#include <iostream>
-#include <memory>
+#include "log.h"
+#include "thread.h"
 
+#include <fmt/format.h>
+#include <gtest/gtest.h>
 
-int fib = 0;
+#define TEST_CASE FiberTest
 
-class Fvck
-{
-public:
-    Fvck()
-    {
-        std::cout << "构造对象 Fvck" << std::endl;
-    }
+using namespace meha;
 
-    ~Fvck()
-    {
-        std::cout << "析构对象 Fvck" << std::endl;
-    }
+static auto g_logger = GET_ROOT_LOGGER();
+static auto run_in_fiber = []() {
+    LOG(g_logger, INFO) << "run in fiber[" << Fiber::GetCurrentID() << "] begin, sleep 1s";
+    ::sleep(1);
+    LOG(g_logger, INFO) << "1 time yield cpu";
+    Fiber::YieldToHold();
+    LOG(g_logger, INFO) << "run in fiber[" << Fiber::GetCurrentID() << "] end, sleep 1s";
+    ::sleep(1);
+    LOG(g_logger, INFO) << "2 time yield cpu";
+    Fiber::YieldToHold();
 };
 
-void fiberFunc()
+void test_fiber()
 {
-    std::array<Fvck, 3> list;
-    std::cout << "调用 fiberFunc()" << std::endl;
-    int a = 0;
-    int b = 1;
-    while (a < 20)
-    {
-        fib = a + b;
-        a = b;
-        b = fib;
-        // 挂起当前协程
-        meha::Fiber::Yield();
-    }
-    std::cout << "fiberFunc() 结束" << std::endl;
+    Fiber::init();
+    LOG(g_logger, INFO) << "main fiber begin";
+    Fiber::sptr pFiber(new Fiber(run_in_fiber, 0));
+    LOG(g_logger, INFO) << "1 time swap in fiber[" << pFiber->getID() << "]";
+    pFiber->swapIn();
+    LOG(g_logger, INFO) << "1 time main fiber after swap in begin";
+    LOG(g_logger, INFO) << "2 time swap in fiber[" << pFiber->getID() << "]";
+    pFiber->swapIn();
+    LOG(g_logger, INFO) << "2 time main fiber after swap in end";
+    pFiber->swapIn();
+    LOG(g_logger, INFO) << "main fiber end";
 }
 
-void test(char c)
+TEST(TEST_CASE, AlternateExection) { test_fiber(); }
+
+TEST(TEST_CASE, MultiThread)
 {
-    for (int i = 0; i < 10; i++)
-    {
-        std::cout << c << std::endl;
-        meha::Fiber::Yield();
+    Thread::SetCurrentName("main");
+    std::vector<Thread::sptr> threads;
+    for (int i = 0; i < 3; i++) {
+        threads.emplace_back(std::make_shared<Thread>(test_fiber, fmt::format("thread[{}]", i)));
     }
+    std::for_each(threads.begin(), threads.end(), [](Thread::sptr &t) { t->join(); });
 }
 
-int main(int, char**)
+int main(int argc, char *argv[])
 {
-    meha::Fiber::GetThis();
-    {
-        auto fiber = std::make_shared<meha::Fiber>(fiberFunc);
-        std::cout << "换入协程，打印斐波那契数列" << std::endl;
-        fiber->call();
-        while (fib < 100 && !fiber->finish())
-        {
-            std::cout << fib << " ";
-            fiber->call();
-        }
-    }
-    //    std::cout << "完成" << std::endl;
-    return 0;
+    testing::InitGoogleTest(&argc, argv);
+    g_logger->setLevel(LogEvent::LogLevel::DEBUG);
+    return RUN_ALL_TESTS();
 }

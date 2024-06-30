@@ -1,5 +1,6 @@
-#ifndef SERVER_FRAMEWORK_SINGLETON_H
-#define SERVER_FRAMEWORK_SINGLETON_H
+// #ifndef SERVER_FRAMEWORK_SINGLETON_H
+// #define SERVER_FRAMEWORK_SINGLETON_H
+#pragma once
 
 #include <memory>
 
@@ -41,4 +42,4 @@ private:
 
 }  // namespace meha
 
-#endif
+// #endif

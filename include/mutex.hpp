@@ -1,9 +1,8 @@
-#ifndef SERVER_FRAMEWORK_MUTEX_H
-#define SERVER_FRAMEWORK_MUTEX_H
+// #ifndef SERVER_FRAMEWORK_MUTEX_H
+// #define SERVER_FRAMEWORK_MUTEX_H
+#pragma once
 
-// #include "log.h"
-#include "noncopyable.h"
-#include "util.h"
+#include <atomic>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -14,23 +13,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-namespace meha {
-/**
- * @brief 对 semaphore.h 信号量的简单封装
- */
-class Semaphore {
-    DISABLE_COPY_MOVE(Semaphore)
-public:
-    explicit Semaphore(uint32_t count);
-    ~Semaphore();
-    // -1，值为零时阻塞
-    void wait();
-    // +1
-    void post();
+#include "noncopyable.h"
 
-private:
-    sem_t m_semaphore;
-};
+namespace meha {
 
 /**
  * @brief pthread 互斥量的封装
@@ -39,20 +24,11 @@ private:
 class Mutex {
     DISABLE_COPY_MOVE(Mutex)
 public:
-    Mutex()
-    {
-        fprintf(stderr, "Mutex创建 %s, %s, %d\n", __PRETTY_FUNCTION__, __FILE__, __LINE__);
-        pthread_mutexattr_t attr;
-        pthread_mutexattr_init(&attr);
-        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);  //同线程可重入（多次上锁而不死锁）
-        pthread_mutex_init(&m_mutex, &attr);
-    }
+    explicit Mutex();
+    ~Mutex();
 
-    ~Mutex() { pthread_mutex_destroy(&m_mutex); }
-
-    int lock() { return pthread_mutex_lock(&m_mutex); }
-
-    int unlock() { return pthread_mutex_unlock(&m_mutex); }
+    int lock() noexcept;
+    int unlock() noexcept;
 
 private:
     pthread_mutex_t m_mutex{};
@@ -67,51 +43,12 @@ private:
 class RWLock {
     DISABLE_COPY_MOVE(RWLock)
 public:
-    RWLock()
-    {
-        if (pthread_rwlock_init(&m_lock, nullptr)) {
-            fprintf(stderr, "pthread_rwlock_init() 失败：%s", ::strerror(errno));
-            // LOG_FMT_FATAL(GET_ROOT_LOGGER(), "pthread_rwlock_init() 失败：%s", ::strerror(errno));
-        }
-    }
+    explicit RWLock();
+    ~RWLock();
 
-    ~RWLock()
-    {
-        if (pthread_rwlock_destroy(&m_lock)) {
-            fprintf(stderr, "pthread_rwlock_destroy() 失败：%s", ::strerror(errno));
-            // LOG_FMT_FATAL(GET_ROOT_LOGGER(), "pthread_rwlock_destroy() 失败：%s", ::strerror(errno));
-        }
-    }
-
-    int readLock()
-    {
-        int ret = pthread_rwlock_rdlock(&m_lock);
-        if (ret) {
-            fprintf(stderr, "pthread_rwlock_rdlock() 失败：%s", ::strerror(errno));
-            // LOG_FMT_FATAL(GET_ROOT_LOGGER(), "pthread_rwlock_rdlock() 失败：%s", ::strerror(errno));
-        }
-        return ret;
-    }
-
-    int writeLock()
-    {
-        int ret = pthread_rwlock_wrlock(&m_lock);
-        if (ret) {
-            fprintf(stderr, "pthread_rwlock_wrlock() 失败：%s", ::strerror(errno));
-            // LOG_FMT_FATAL(GET_ROOT_LOGGER(), "pthread_rwlock_wrlock() 失败：%s", ::strerror(errno));
-        }
-        return ret;
-    }
-
-    int unlock()
-    {
-        int ret = pthread_rwlock_unlock(&m_lock);
-        if (ret) {
-            fprintf(stderr, "pthread_rwlock_unlock() 失败：%s", ::strerror(errno));
-            // LOG_FMT_FATAL(GET_ROOT_LOGGER(), "pthread_rwlock_unlock() 失败：%s", ::strerror(errno));
-        }
-        return ret;
-    }
+    int readLock() noexcept;
+    int writeLock() noexcept;
+    int unlock() noexcept;
 
 private:
     pthread_rwlock_t m_lock{};
@@ -218,20 +155,47 @@ private:
     bool m_locked;
 };
 
+class SpinLock {
+    DISABLE_COPY_MOVE(SpinLock)
+public:
+    explicit SpinLock();
+    ~SpinLock();
+    void lock() noexcept;
+    void unlock() noexcept;
+
+private:
+    pthread_spinlock_t m_mutex;
+};
+
 /**
- * @brief 互斥锁的 RAII
+ * @brief 原子锁
+ * @details 采用自旋锁的实现
  */
+class CASLock {
+    DISABLE_COPY_MOVE(CASLock)
+public:
+    explicit CASLock();
+    ~CASLock() = default;
+    void lock() noexcept;
+    void unlock() noexcept;
+
+private:
+    // 原子状态
+    volatile std::atomic_flag m_mutex;
+};
+
+// 互斥锁的 RAII 实现
 using ScopedLock = ScopedLockImpl<Mutex>;
 
-/**
- * @brief 读写锁针对读操作的作用域 RAII 实现
- */
+//读写锁针对读操作的作用域 RAII 实现
 using ReadScopedLock = ReadScopedLockImpl<RWLock>;
 
-/**
- * @brief 读写锁针对写操作的作用域 RAII 实现
- */
+// 读写锁针对写操作的作用域 RAII 实现
 using WriteScopedLock = WriteScopedLockImpl<RWLock>;
+
+// 自旋锁的作用域 RAII 实现
+using SpinScopedLock = ScopedLockImpl<SpinLock>;
+
 }  // namespace meha
 
-#endif  // MUTEX_)
+// #endif

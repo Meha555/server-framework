@@ -35,11 +35,11 @@ IOManager::IOManager(size_t thread_size, bool use_caller, std::string name)
     // 创建 epoll
     m_epoll_fd = ::epoll_create(0xffff);
     if (m_epoll_fd == -1) {
-        THROW_EXCEPTION_WHIT_ERRNO;
+        throw SystemError("epoll_create() error");
     }
     // 创建管道，并加入 epoll 监听
     if (::pipe(m_tickle_fds) == -1) {
-        THROW_EXCEPTION_WHIT_ERRNO;
+        throw SystemError("pipe() error");
     }
     // 创建管道可读事件监听
     epoll_event event{};
@@ -48,10 +48,10 @@ IOManager::IOManager(size_t thread_size, bool use_caller, std::string name)
     event.events = EPOLLIN | EPOLLET;
     // 将管道读取端设置为非阻塞模式
     if (::fcntl(m_tickle_fds[0], F_SETFL, O_NONBLOCK)) {
-        THROW_EXCEPTION_WHIT_ERRNO;
+        throw SystemError("fcntl() error");
     }
     if (::epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, m_tickle_fds[0], &event) == -1) {
-        THROW_EXCEPTION_WHIT_ERRNO;
+        throw SystemError("epoll_ctl() error");
     }
     contextListResize(64);
     // 启动调度器
@@ -133,7 +133,7 @@ int IOManager::addEventListener(int fd, FDEventType event, std::function<void()>
     // 给 fd 注册事件监听
     if (::epoll_ctl(m_epoll_fd, op, fd, &epevent) == -1) {
         LOG_FMT_ERROR(root_logger, "epoll_ctl 调用失败，epfd = %d", m_epoll_fd);
-        // THROW_EXCEPTION_WHIT_ERRNO;
+        //   throw SystemError("epoll_ctl() error");
         return -1;
     }
     //    LOG_FMT_DEBUG(root_logger, "epoll_ctl %s 注册事件 %ul : %s",
@@ -181,7 +181,7 @@ bool IOManager::removeEventListener(int fd, FDEventType event)
     epevent.data.ptr = fd_ctx;
     if (::epoll_ctl(m_epoll_fd, op, fd, &epevent) == -1) {
         LOG_FMT_ERROR(root_logger, "epoll_ctl 调用失败，epfd = %d", m_epoll_fd);
-        THROW_EXCEPTION_WHIT_ERRNO;
+        throw SystemError("epoll_ctl() error");
     }
     fd_ctx->m_events = new_event;
     auto &event_handler = fd_ctx->getEventHandler(event);
@@ -214,7 +214,7 @@ bool IOManager::cancelEventListener(int fd, FDEventType event)
     epevent.data.ptr = fd_ctx;
     if (::epoll_ctl(m_epoll_fd, op, fd, &epevent) == -1) {
         LOG_FMT_ERROR(root_logger, "epoll_ctl 调用失败，epfd = %d", m_epoll_fd);
-        THROW_EXCEPTION_WHIT_ERRNO;
+        throw SystemError("epoll_ctl() error");
     }
     fd_ctx->m_events = new_event;
     fd_ctx->triggerEvent(event);
@@ -241,7 +241,7 @@ bool IOManager::cancelAll(int fd)
     //    epoll_event epevent{};
     if (::epoll_ctl(m_epoll_fd, EPOLL_CTL_DEL, fd, nullptr) == -1) {
         LOG_FMT_ERROR(root_logger, "epoll_ctl 调用失败，epfd = %d", m_epoll_fd);
-        THROW_EXCEPTION_WHIT_ERRNO;
+        throw SystemError("epoll_ctl() error");
     }
     if (fd_ctx->m_events & FDEventType::READ) {
         fd_ctx->triggerEvent(FDEventType::READ);
@@ -379,7 +379,7 @@ void IOManager::onIdle()
         }
         // 让出当前线程的执行权，给调度器执行排队等待的协程
         // Fiber::YieldToHold();
-        Fiber::ptr current_fiber = Fiber::GetThis();
+        Fiber::sptr current_fiber = Fiber::GetThis();
         auto raw_ptr = current_fiber.get();
         current_fiber.reset();
         raw_ptr->swapOut();

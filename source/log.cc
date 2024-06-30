@@ -11,12 +11,11 @@
 #include "config.hpp"
 #include "exception.h"
 #include "log.h"
+#include "util.h"
 
 namespace meha {
 
-/**
- * @brief 普通文本项（就是日志字符串中出现的非content、非格式控制符的字符）
- */
+// 普通文本项（就是日志字符串中出现的非content、非格式控制符的字符）
 struct PlainFormatItem : public LogFormatter::FormatItemBase
 {
     explicit PlainFormatItem(const std::string &str) : m_str(str) {}
@@ -26,57 +25,60 @@ private:
     std::string m_str;
 };
 
-/**
- * @brief 日志级别项
- */
+// 日志级别项
 struct LevelFormatItem : public LogFormatter::FormatItemBase
 {
     void format(std::ostream &out, const LogEvent::ptr event) const override
     {
-        out << LogEvent::LogLevel::levelToString(event->level);
+        out << std::left << std::setw(5) << LogEvent::LogLevel::levelToString(event->level);
     }
 };
 
-/**
- * @brief 文件名项
- */
+// 日志类别项
+struct CategoryFormatItem : public LogFormatter::FormatItemBase
+{
+    void format(std::ostream &out, const LogEvent::ptr event) const override
+    {
+        out << std::left << std::setw(6) << event->category;
+    }
+};
+
+// 文件名项
 struct FilenameFormatItem : public LogFormatter::FormatItemBase
 {
     void format(std::ostream &out, const LogEvent::ptr event) const override { out << event->file; }
 };
 
-/**
- * @brief 行号项
- */
+// 行号项
 struct LineFormatItem : public LogFormatter::FormatItemBase
 {
 public:
     void format(std::ostream &out, const LogEvent::ptr event) const override { out << event->line; }
 };
 
-/**
- * @brief 线程号项
- */
+// 函数名项
+struct FunctionFormatItem : public LogFormatter::FormatItemBase
+{
+    void format(std::ostream &out, const LogEvent::ptr event) const override { out << event->function; }
+};
+
+//线程号项
 struct ThreadIDFormatItem : public LogFormatter::FormatItemBase
 {
 public:
     void format(std::ostream &out, const LogEvent::ptr event) const override { out << event->thread_id; }
 };
 
-/**
- * @brief 协程号项
- */
+// 协程号项
 struct FiberIDFormatItem : public LogFormatter::FormatItemBase
 {
     void format(std::ostream &out, const LogEvent::ptr event) const override { out << event->fiber_id; }
 };
 
-/**
- * @brief 时间戳项
- */
-struct TimeFormatItem : public LogFormatter::FormatItemBase
+// 时间戳项
+struct DateTimeFormatItem : public LogFormatter::FormatItemBase
 {
-    explicit TimeFormatItem(const std::string &str = "%Y-%m-%d %H:%M:%S") : m_time_pattern(str)
+    explicit DateTimeFormatItem(const std::string &str = "%Y-%m-%d %H:%M:%S") : m_time_pattern(str)
     {
         if (m_time_pattern.empty()) {
             m_time_pattern = "%Y-%m-%d %H:%M:%S";
@@ -84,13 +86,6 @@ struct TimeFormatItem : public LogFormatter::FormatItemBase
     }
     void format(std::ostream &out, const LogEvent::ptr event) const override
     {
-        // struct tm time_struct
-        // {};
-        // time_t time_l = event->timestamp;
-        // localtime_r(&time_l, &time_struct);
-        // char buffer[64]{0};
-        // strftime(buffer, sizeof(buffer), m_time_pattern.c_str(), &time_struct);
-        // out << buffer;
         std::time_t t = std::chrono::system_clock::to_time_t(event->timestamp);
         std::tm tm;
         ::localtime_r(&t, &tm);
@@ -103,61 +98,51 @@ private:
     std::string m_time_pattern;
 };
 
-/**
- * @brief 日志内容项
- */
+// 累计毫秒数项
+struct ElapseFormatItem : public LogFormatter::FormatItemBase
+{
+    void format(std::ostream &out, const LogEvent::ptr event) const override { out << GetCurrentMS().count(); }
+};
+
+// 日志内容项
 struct ContentFormatItem : public LogFormatter::FormatItemBase
 {
     void format(std::ostream &out, const LogEvent::ptr event) const override { out << event->getContent(); }
 };
 
-/**
- * @brief 换行符项
- */
+// 换行符项
 struct NewLineFormatItem : public LogFormatter::FormatItemBase
 {
     void format(std::ostream &out, const LogEvent::ptr event) const override { out << '\n'; }
 };
 
-/**
- * @brief 制表符项
- */
+// 制表符项
 class TabFormatItem : public LogFormatter::FormatItemBase {
     void format(std::ostream &out, const LogEvent::ptr event) const override { out << '\t'; }
 };
 
-/**
- * @brief '%'项
- */
+// '%'项
 struct PercentSignFormatItem : public LogFormatter::FormatItemBase
 {
     void format(std::ostream &out, const LogEvent::ptr event) const override { out << '%'; }
 };
 
-/** @brief 日志模板格式控制符对应的日志项实现类
- * %p 输出日志等级
- * %f 输出文件名
- * %l 输出行号
- * %d 输出日志时间
- * %t 输出线程号
- * %F 输出协程号
- * %m 输出日志消息
- * %n 输出换行
- * %% 输出百分号
- * %T 输出制表符
- * */
-thread_local static const std::unordered_map<char, LogFormatter::FormatItemBase::ptr> g_format_item_map{
+// 日志模板格式控制符对应的日志项实现类
+static const std::unordered_map<char, LogFormatter::FormatItemBase::ptr> g_format_item_map{
 #define __FN(ch, item) {ch, std::make_shared<item>()}
-    __FN('p', LevelFormatItem),
-    __FN('f', FilenameFormatItem),
-    __FN('l', LineFormatItem),
-    __FN('d', TimeFormatItem),
-    __FN('t', ThreadIDFormatItem),
-    __FN('F', FiberIDFormatItem),
-    __FN('m', ContentFormatItem),
-    __FN('n', NewLineFormatItem),
-    __FN('%', PercentSignFormatItem),
-    __FN('T', TabFormatItem),
+    __FN('p', LevelFormatItem),        //日志等级
+    __FN('c', CategoryFormatItem),     //日志分类
+    __FN('f', FilenameFormatItem),     //文件名
+    __FN('l', LineFormatItem),         //行号
+    __FN('C', FunctionFormatItem),     //函数名
+    __FN('d', DateTimeFormatItem),     //时间
+    __FN('r', ElapseFormatItem),       //累计毫秒数
+    __FN('t', ThreadIDFormatItem),     //线程号
+    __FN('F', FiberIDFormatItem),      //协程号
+    __FN('m', ContentFormatItem),      //内容
+    __FN('n', NewLineFormatItem),      //换行符
+    __FN('%', PercentSignFormatItem),  //百分号
+    __FN('T', TabFormatItem),          //制表符
 #undef __FN
 };
 
@@ -181,13 +166,17 @@ std::string LogEvent::LogLevel::levelToString(LogEvent::LogLevel::Level level)
 }
 
 Logger::Logger()
-    : m_name("default"), m_base_level(LogEvent::LogLevel::UNKNOWN), m_pattern("[%d] [%p] [T:%t F:%F]%T%m%n")
+    : m_category("default"),
+      m_base_level(LogEvent::LogLevel::UNKNOWN),
+      m_pattern("%d%T[%c] [%p] (T:%t F:%F) %f:%l%T%m%n")
 {
     m_default_formatter.reset(new LogFormatter(m_pattern));
 }
 
-Logger::Logger(const std::string &name, const LogEvent::LogLevel::Level lowest_level, const std::string &pattern)
-    : m_name(name), m_base_level(lowest_level), m_pattern(pattern)
+Logger::Logger(const std::string &category, const LogEvent::LogLevel::Level lowest_level, const std::string &pattern)
+    : m_category(category),
+      m_base_level(lowest_level),
+      m_pattern(pattern)
 {
     m_default_formatter.reset(new LogFormatter(pattern));
 }
@@ -300,7 +289,8 @@ void StdoutLogAppender::log(const LogEvent::LogLevel::Level level, const LogEven
 LogAppender::LogAppender(LogEvent::LogLevel::Level level) : m_base_level(level) {}
 
 FileLogAppender::FileLogAppender(const std::string &filename, LogEvent::LogLevel::Level level)
-    : LogAppender(level), m_filename(filename)
+    : LogAppender(level),
+      m_filename(filename)
 {
     openFile();
 }
@@ -404,9 +394,9 @@ void __LoggerManager::init()
     auto config = Config::Lookup<std::vector<LogConfig>>("logs");
     const auto &config_log_list = config->getValue();
     for (const auto &config_log : config_log_list) {
-        // 删除已存在的同名的 logger
-        m_logger_map.erase(config_log.name);
-        auto logger = std::make_shared<Logger>(config_log.name, config_log.level, config_log.pattern);
+        // 删除已存在的类别的 logger
+        m_logger_map.erase(config_log.category);
+        auto logger = std::make_shared<Logger>(config_log.category, config_log.level, config_log.pattern);
         for (const auto &config_app : config_log.appenders) {
             LogAppender::ptr appender;
             switch (config_app.type) {
@@ -429,22 +419,22 @@ void __LoggerManager::init()
             }
             logger->addAppender(std::move(appender));
         }
-        std::cout << "成功创建日志器 " << config_log.name << std::endl;
-        m_logger_map.insert(std::make_pair(config_log.name, std::move(logger)));
+        std::cout << "成功创建日志器 " << config_log.category << std::endl;
+        m_logger_map.insert(std::make_pair(config_log.category, std::move(logger)));
     }
     // 确保存在一个全局的日志器
     ensureRootLoggerExist();
 }
 
-Logger::ptr __LoggerManager::getLogger(const std::string &name) const
+Logger::ptr __LoggerManager::getLogger(const std::string &category) const
 {
     ScopedLock lock(&m_mutex);  // FIXME 这个锁是可递归的吗，所以下面不能用getLogger("root") ?
-    auto iter = m_logger_map.find(name);
+    auto iter = m_logger_map.find(category);
     if (iter == m_logger_map.end()) {
         // 日志器不存在就返回全局默认日志器
         // return m_logger_map.find("root")->second;
         // 指定的日志器不存在就抛出异常
-        throw Exception(fmt::format("不存在的日志器: {}", name));
+        throw Exception(fmt::format("不存在的日志器: {}", category));
     }
     return iter->second;
 }
@@ -474,7 +464,7 @@ struct lexical_cast<std::string, std::vector<LogConfig>>
         if (node.IsSequence()) {
             for (const auto log_config : node) {
                 LogConfig lc{};
-                lc.name = log_config["name"] ? log_config["name"].as<std::string>() : "";
+                lc.category = log_config["category"] ? log_config["category"].as<std::string>() : "";
                 lc.level = log_config["level"] ? (LogEvent::LogLevel::Level)(log_config["level"].as<int>())
                                                : LogEvent::LogLevel::UNKNOWN;
                 lc.pattern = log_config["pattern"] ? log_config["pattern"].as<std::string>() : "";  // 日志器默认格式
@@ -504,7 +494,7 @@ struct lexical_cast<std::vector<LogConfig>, std::string>
     {
         YAML::Node node;
         for (const auto &log_config : source) {
-            node["name"] = log_config.name;
+            node["category"] = log_config.category;
             node["level"] = (int)(log_config.level);
             node["pattern"] = log_config.pattern;
             YAML::Node app_list_node;

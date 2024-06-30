@@ -20,7 +20,7 @@ void throw_system_error()
     }
 }
 
-TEST(TEST_CASE, TEST_CASE)
+TEST(TEST_CASE, 测试打印调用栈)
 {
     try {
         fn(10);
@@ -32,6 +32,7 @@ TEST(TEST_CASE, TEST_CASE)
     try {
         throw_system_error();
     } catch (const meha::SystemError &e) {
+        std::cerr << errno << std::endl;
         std::cerr << e.what() << std::endl;
         std::cerr << e.stackTrace() << std::endl;
     }

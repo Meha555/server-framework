@@ -1,5 +1,6 @@
-#ifndef SERVER_FRAMEWORK_HOOK_H
-#define SERVER_FRAMEWORK_HOOK_H
+// #ifndef SERVER_FRAMEWORK_HOOK_H
+// #define SERVER_FRAMEWORK_HOOK_H
+#pragma once
 
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -100,4 +101,4 @@ extern "C"
     extern ioctl_func ioctl_f;
 }
 
-#endif
+// #endif

@@ -2,12 +2,18 @@
 #include "scheduler.h"
 #include <iostream>
 
+#include <gtest/gtest.h>
+
+using namespace meha;
+
+#define TEST_CASE Scheduler
+
 void fn()
 {
     for (int i = 0; i < 3; i++)
     {
         std::cout << "啊啊啊啊啊啊" << std::endl;
-        meha::Fiber::YieldToHold();
+        Fiber::YieldToHold();
     }
 }
 
@@ -16,22 +22,25 @@ void fn2()
     for (int i = 0; i < 3; i++)
     {
         std::cout << "哦哦哦哦哦哦" << std::endl;
-        meha::Fiber::YieldToHold();
+        Fiber::YieldToHold();
     }
 }
 
-int main(int, char**)
+TEST(TEST_CASE, test1)
 {
-    meha::Scheduler sc(2, true);
+    Scheduler sc(2, true);
     sc.start();
 
     int i = 0;
-    for (i = 0; i < 3; i++)
-    {
-        sc.schedule([&i]()
-                    { std::cout << ">>>>>> " << i << std::endl; });
+    for (i = 0; i < 3; i++) {
+        sc.schedule([&i]() { std::cout << ">>>>>> " << i << std::endl; });
     }
 
     sc.stop();
-    return 0;
+}
+
+int main(int argc, char* argv[])
+{
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

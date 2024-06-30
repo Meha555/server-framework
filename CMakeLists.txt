@@ -16,7 +16,8 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 find_package(fmt CONFIG REQUIRED)
 
 include(CTest) # 引入CTest
-include_directories(include)
+
+include_directories(include) # 全局头文件搜索目录
 
 add_subdirectory(source)
 if(BUILD_TESTING)

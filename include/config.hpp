@@ -1,8 +1,9 @@
-#ifndef SERVER_FRAMEWORK_CONFIG_H
-#define SERVER_FRAMEWORK_CONFIG_H
+// #ifndef SERVER_FRAMEWORK_CONFIG_H
+// #define SERVER_FRAMEWORK_CONFIG_H
+#pragma once
 
 #include "log.h"
-#include "thread.h"
+#include "mutex.hpp"
 #include <algorithm>
 #include <boost/lexical_cast.hpp>
 #include <boost/lexical_cast/bad_lexical_cast.hpp>
@@ -601,4 +602,4 @@ private:
 
 }  // namespace meha
 
-#endif
+// #endif

@@ -1,5 +1,6 @@
-#ifndef SERVER_FRAMEWORK_TIMER_H
-#define SERVER_FRAMEWORK_TIMER_H
+// #ifndef SERVER_FRAMEWORK_TIMER_H
+// #define SERVER_FRAMEWORK_TIMER_H
+#pragma once
 
 #include "thread.h"
 #include <memory>
@@ -141,4 +142,4 @@ private:
 
 } // end namespace meha
 
-#endif
+// #endif

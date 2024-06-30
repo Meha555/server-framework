@@ -1,5 +1,6 @@
-#ifndef SERVER_FRAMEWORK_SCHEDULER_H
-#define SERVER_FRAMEWORK_SCHEDULER_H
+// #ifndef SERVER_FRAMEWORK_SCHEDULER_H
+// #define SERVER_FRAMEWORK_SCHEDULER_H
+#pragma once
 
 #include "fiber.h"
 #include "thread.h"
@@ -27,7 +28,7 @@ private:  // 内部类
         using uptr = std::unique_ptr<Task>;
         using TaskFunc = std::function<void()>;
 
-        Fiber::ptr fiber;
+        Fiber::sptr fiber;
         TaskFunc callback;
         long thread_id;  // 任务要绑定执行线程的 id
 
@@ -35,7 +36,7 @@ private:  // 内部类
 
         Task(const Task &rhs) = default;
 
-        Task(Fiber::ptr f, long tid) : fiber(std::move(f)), thread_id(tid) {}
+        Task(Fiber::sptr f, long tid) : fiber(std::move(f)), thread_id(tid) {}
 
         Task(const TaskFunc &cb, long tid) : callback(cb), thread_id(tid) {}
 
@@ -177,7 +178,7 @@ protected:
 private:
     mutable Mutex m_mutex;
     // 负责调度的协程，仅在类实例化参数中 use_caller 为 true 时有效
-    Fiber::ptr m_root_fiber;
+    Fiber::sptr m_root_fiber;
     // 线程对象列表
     std::vector<Thread::sptr> m_thread_list;
     // 任务集合
@@ -185,4 +186,4 @@ private:
 };
 }  // namespace meha
 
-#endif  // SERVER_FRAMEWORK_SCHEDULER_H
+// #endif  // SERVER_FRAMEWORK_SCHEDULER_H

@@ -1,5 +1,6 @@
-#ifndef SERVER_FRAMEWORK_LOG_H
-#define SERVER_FRAMEWORK_LOG_H
+// #ifndef SERVER_FRAMEWORK_LOG_H
+// #define SERVER_FRAMEWORK_LOG_H
+#pragma once
 
 #include <chrono>
 #include <cstdint>
@@ -14,27 +15,38 @@
 #include <vector>
 
 #include "mutex.hpp"
+#include "singleton.h"
 #include "util.h"
 
-#define GET_ROOT_LOGGER() meha::LoggerManager::GetInstance()->getRootLogger()
-#define GET_LOGGER(name)  meha::LoggerManager::GetInstance()->getLogger(name)
+#define GET_ROOT_LOGGER()    meha::LoggerManager::GetInstance()->getRootLogger()
+#define GET_LOGGER(category) meha::LoggerManager::GetInstance()->getLogger(category)
 
 // 生成一个LogEvent::ptr的宏
-#define MAKE_LOG_EVENT(level, message)                                                                                 \
-    std::make_shared<meha::LogEvent>(                                                                                  \
-        __FILE__, __LINE__, meha::GetThreadID(), meha::GetFiberID(), meha::LogEvent::LogLevel::level, message)
+#define MAKE_LOG_EVENT(category, level, message)                                                                       \
+    std::make_shared<meha::LogEvent>(__FILE__,                                                                         \
+                                     __LINE__,                                                                         \
+                                     __PRETTY_FUNCTION__,                                                              \
+                                     meha::GetThreadID(),                                                              \
+                                     meha::GetFiberID(),                                                               \
+                                     category,                                                                         \
+                                     meha::LogEvent::LogLevel::level,                                                  \
+                                     message)
 
 // 使用LogEventWrapper的宏
 #define LOG(logger, level)                                                                                             \
     if (logger->getLevel() <= meha::LogEvent::LogLevel::level)                                                         \
-    meha::LogEventWrapper(                                                                                             \
-        logger,                                                                                                        \
-        std::make_shared<meha::LogEvent>(                                                                              \
-            __FILE__, __LINE__, meha::GetThreadID(), meha::GetFiberID(), meha::LogEvent::LogLevel::level))             \
+    meha::LogEventWrapper(logger,                                                                                      \
+                          std::make_shared<meha::LogEvent>(__FILE__,                                                   \
+                                                           __LINE__,                                                   \
+                                                           __PRETTY_FUNCTION__,                                        \
+                                                           meha::GetThreadID(),                                        \
+                                                           meha::GetFiberID(),                                         \
+                                                           logger->getCategory(),                                      \
+                                                           meha::LogEvent::LogLevel::level))                           \
         .getSS()
 
 // 使用C-style API打印日志的宏（使用默认格式）
-#define LOG_LEVEL(logger, level, message) logger->log(MAKE_LOG_EVENT(level, message))
+#define LOG_LEVEL(logger, level, message) logger->log(MAKE_LOG_EVENT(logger->getCategory(), level, message))
 #define LOG_DEBUG(logger, message)        LOG_LEVEL(logger, DEBUG, message)
 #define LOG_INFO(logger, message)         LOG_LEVEL(logger, INFO, message)
 #define LOG_WARN(logger, message)         LOG_LEVEL(logger, WARN, message)
@@ -88,19 +100,30 @@ struct LogEvent
 
     LogEvent(const std::string &file,
              const uint32_t line,
+             const std::string &func,
              const uint32_t tid,
              const uint32_t fid,
+             const std::string &category,
              const LogLevel::Level level = LogLevel::DEBUG,
              const std::string &content = "")
-        : level(level), file(file), line(line), thread_id(tid), fiber_id(fid),
-          timestamp(std::chrono::system_clock::now()), m_ss(content)
+        : category(category),
+          level(level),
+          file(file),
+          line(line),
+          function(func),
+          thread_id(tid),
+          fiber_id(fid),
+          timestamp(std::chrono::system_clock::now()),
+          m_ss(content)
     {}
 
     const std::string getContent() const { return m_ss.str(); }
 
+    const std::string category;                             // 日志器分类
     LogLevel::Level level;                                  // 日志等级
-    const std::string file;                                 // 代码所在文件
-    const uint32_t line;                                    // 代码行号
+    const std::string file;                                 // 文件名
+    const std::string function;                             // 函数名
+    const uint32_t line;                                    // 行号
     const uint32_t thread_id;                               // 线程ID
     const uint32_t fiber_id;                                // 协程ID
     const std::chrono::system_clock::time_point timestamp;  // 当前时间戳
@@ -201,7 +224,7 @@ public:
     using ptr = std::shared_ptr<Logger>;
 
     Logger();
-    Logger(const std::string &name, const LogEvent::LogLevel::Level lowest_level, const std::string &pattern);
+    Logger(const std::string &category, const LogEvent::LogLevel::Level lowest_level, const std::string &pattern);
     // thread-safe 输出日志
     void log(const LogEvent::ptr event);
     // C-style API
@@ -216,11 +239,13 @@ public:
     // thread-safe 删除输出器
     void delAppender(const LogAppender::ptr appender);
 
+    std::string getCategory() const { return m_category; }
+    void setCategory(const std::string &category) { m_category = category; }
     LogEvent::LogLevel::Level getLevel() const { return m_base_level; }
-    void setLevel(LogEvent::LogLevel::Level level) { m_base_level = level; }
+    void setLevel(const LogEvent::LogLevel::Level level) { m_base_level = level; }
 
 private:
-    const std::string m_name;                 // 日志器名称
+    std::string m_category;                   // 日志器类别
     LogEvent::LogLevel::Level m_base_level;   // 日志最低输出级别
     std::string m_pattern;                    // 日志格式化器的默认pattern
     LogFormatter::ptr m_default_formatter;    // 日志默认格式化器，当加入 m_appenders
@@ -243,7 +268,7 @@ public:
 
     explicit __LoggerManager();
     // 传入日志器名称来获取指定的日志器。如果不存在则返回全局日志器
-    Logger::ptr getLogger(const std::string &name) const;
+    Logger::ptr getLogger(const std::string &category) const;
     Logger::ptr getRootLogger() const;
 
 private:
@@ -266,9 +291,9 @@ using LoggerManager = SingletonPtr<__LoggerManager>;
 struct LogConfig
 {
     LogConfig() : level(LogEvent::LogLevel::UNKNOWN) {}
-    bool operator==(const LogConfig &rhs) const { return name == rhs.name; }
+    bool operator==(const LogConfig &rhs) const { return category == rhs.category; }
 
-    std::string name;                        // 日志器名称
+    std::string category;                    // 日志器分类
     LogEvent::LogLevel::Level level;         // 日志器日志等级
     std::string pattern;                     // 日志器日志格式
     std::list<LogAppenderConfig> appenders;  // 日志器绑定的当前输出器的配置
@@ -286,7 +311,8 @@ struct LogAppenderConfig
         FILE = 1
     };
     LogAppenderConfig()
-        : type(Type::STDOUT), level(LogEvent::LogLevel::UNKNOWN)
+        : type(Type::STDOUT),
+          level(LogEvent::LogLevel::UNKNOWN)
     {}  // REVIEW 这里枚举类的使用有点坑，如果LogLevel是放在全局命名空间则情况就不一样了
     bool operator==(const LogAppenderConfig &rhs) const
     {
@@ -322,7 +348,7 @@ struct LogIniter
 {
     explicit LogIniter();
 };
-//REVIEW - 未解之谜：为什么LogInter的静态全局对象必须放在log.h中，如果放在log.cc中，则test_thread就会段错误？
+// REVIEW - 未解之谜：为什么LogInter的静态全局对象必须放在log.h中，如果放在log.cc中，则test_thread就会段错误？
 static LogIniter __log_init__;
 
 // extern template struct lexical_cast<std::string, std::vector<LogConfig>>;
@@ -332,4 +358,4 @@ static LogIniter __log_init__;
 
 }  // namespace meha
 
-#endif  // SERVER_FRAMEWORK_LOG_H
+// #endif  // SERVER_FRAMEWORK_LOG_H

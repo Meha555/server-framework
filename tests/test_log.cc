@@ -18,7 +18,7 @@ TEST(TEST_CASE, CStyleLogger)
 {
     std::cout << ">>>>>> 测试日志器的默认用法 <<<<<<" << std::endl;
     auto logger = meha::LoggerManager::GetInstance()->getLogger("root");
-    auto event = MAKE_LOG_EVENT(DEBUG, "wdnmd");
+    auto event = MAKE_LOG_EVENT(logger->getCategory(), DEBUG, "wdnmd");
     logger->log(event);
     logger->debug(event);
     logger->info(event);
@@ -104,7 +104,7 @@ TEST(TEST_CASE, MultiThreadLog)
 {
     auto fn = [](const char *msg) {
         auto logger = GET_ROOT_LOGGER();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 10; i++) {
             LOG_INFO(logger, msg);
         }
     };

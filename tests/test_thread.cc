@@ -1,9 +1,9 @@
 #include "log.h"
 #include "thread.h"
+#include <fmt/format.h>
 #include <gtest/gtest.h>
 #include <memory>
 #include <vector>
-#include <fmt/format.h>
 
 #define TEST_CASE ThreadTest
 
@@ -12,17 +12,14 @@ auto g_logger = GET_ROOT_LOGGER();
 using namespace std;
 using namespace meha;
 
-static uint64_t cnt = 0;
+static int cnt = 0;
 RWLock s_rwlock;
 Mutex s_mutex;
 
 void fn_1()
 {
-    LOG_FMT_DEBUG(g_logger,
-                  "当前线程 id = %ld/%d, 当前线程名 = %s",
-                  GetThreadID(),
-                  Thread::GetThisId(),
-                  Thread::GetThisName().c_str());
+    LOG_FMT_DEBUG(
+        g_logger, "当前线程 id = %d/%d, 当前线程名 = %s", Thread::GetCurrentId(), cnt, Thread::GetCurrentName().data());
 }
 
 void fn_2()
@@ -39,7 +36,7 @@ TEST(TEST_CASE, createThread)
 {
     vector<Thread::sptr> thread_list;
     for (size_t i = 0; i < 5; ++i) {
-        thread_list.push_back(make_shared<Thread>(&fn_1, "thread_" + to_string(i)));
+        thread_list.emplace_back(make_shared<Thread>(&fn_1, "thread_" + to_string(i)));
     }
     LOG_DEBUG(g_logger, "调用 join() 启动子线程，将子线程并入主线程");
     for (auto thread : thread_list) {
@@ -55,14 +52,14 @@ TEST(TEST_CASE, readWriteLock)
 {
     vector<Thread::uptr> thread_list;
     for (int i = 0; i < 10; i++) {
-        thread_list.push_back(make_unique<Thread>(&fn_2, "temp_thread" + to_string(i)));
+        thread_list.emplace_back(make_unique<Thread>(&fn_2, "temp_thread" + to_string(i)));
     }
 
     for (auto &thread : thread_list) {
         thread->join();
     }
 
-    LOG_FMT_DEBUG(g_logger, "count = %ld", cnt);
+    LOG_FMT_DEBUG(g_logger, "count = %d", cnt);
 }
 
 int main(int argc, char *argv[])

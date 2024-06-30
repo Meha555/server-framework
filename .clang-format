@@ -119,6 +119,8 @@ BinPackArguments: false
 #BinPackParameters：如果为false，函数声明或函数定义的参数将全部在同一行或各有一行。
 BinPackParameters: false
 
+PackConstructorInitializers: CurrentLine
+
 BreakBeforeBraces: Custom
 # 控制单独的大括号换行事件，只有当BreakBeforeBraces设置为Custom时才有效
 BraceWrapping:

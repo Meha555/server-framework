@@ -61,14 +61,14 @@ public:  // 实例方法
     bool cancelAll(int fd);
 
 public:  // 类方法
-    static IOManager *GetThis();
+    static IOManager *GetCurrent();
 
 protected:
     void tickle() override;
-    //    bool onStop() override;
-    void onIdle() override;
-    bool isStop() override;
-    bool isStop(uint64_t &timeout);
+    //    bool doStop() override;
+    void doIdle() override;
+    bool isStoped() const override;
+    bool isStoped(uint64_t &timeout) const;
     void contextListResize(size_t size);
 
     void onTimerInsertedAtFirst() override;

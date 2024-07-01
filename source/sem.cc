@@ -44,7 +44,7 @@ FiberSemaphore::~FiberSemaphore() { ASSERT(m_waiting_fibers.empty()); }
 
 bool FiberSemaphore::tryWait()
 {
-    ASSERT(Scheduler::GetThis());
+    ASSERT(Scheduler::GetCurrent());
     SpinScopedLock lock(&m_mutex);
     if (m_concurency > 0) {
         --m_concurency;
@@ -55,14 +55,14 @@ bool FiberSemaphore::tryWait()
 
 void FiberSemaphore::wait()
 {
-    ASSERT(Scheduler::GetThis());
+    ASSERT(Scheduler::GetCurrent());
     {
         SpinScopedLock lock(&m_mutex);
         if (m_concurency > 0) {
             --m_concurency;
             return;
         } else {
-            m_waiting_fibers.emplace_back(std::make_pair(Scheduler::GetThis(), Fiber::GetThis()));
+            m_waiting_fibers.emplace_back(std::make_pair(Scheduler::GetCurrent(), Fiber::GetCurrent()));
         }
     }
     //挂在信号量等待队列上，解锁，挂起当前协程

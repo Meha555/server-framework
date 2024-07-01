@@ -30,10 +30,6 @@
     } while (0)
 #endif
 
-// LOG(GET_ROOT_LOGGER(), FATAL) << "Assertion: " << #cond << ", " << msg << '\n'
-//                               << "SysErr: " << strerror(errno) << " (" << errno << ")\n"
-//                               << "Backtrace: " << '\n'
-//                               << meha::BacktraceToString();
 // 额外信息的断言
 #ifndef ASSERT_FMT
 #define ASSERT_FMT(cond, fmt, args...)                                                                                 \
@@ -78,8 +74,6 @@ std::chrono::milliseconds GetCurrentMS();
 std::chrono::microseconds GetCurrentUS();
 
 std::chrono::nanoseconds GetCurrentNS();
-
-// uint64_t GetCurrent
 
 }  // namespace meha
 // #endif

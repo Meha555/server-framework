@@ -29,7 +29,9 @@ public:
     struct ThreadClosure
     {
         ThreadClosure(const std::string_view &name, const ThreadFunc &callback, void *user_data = nullptr)
-            : name(name), callback(std::move(callback)), user_data(user_data)
+            : name(name),
+              callback(std::move(callback)),
+              user_data(user_data)
         {}
         std::string_view name;
         ThreadFunc callback;
@@ -46,7 +48,7 @@ public:
     static void *Run(void *arg);
 
     // 获取当前线程指针
-    static Thread *GetThis();
+    static Thread *GetCurrent();
     // 获取当前线程的系统线程 id
     static pid_t GetCurrentId();
     // 获取当前运行线程的名称

@@ -114,7 +114,7 @@ RETRY:
     if (n == -1 && errno == EAGAIN) {
         LOG_FMT_DEBUG(meha::root_logger, "doIO(%s): 开始异步等待", hook_func_name);
 
-        auto iom = meha::IOManager::GetThis();
+        auto iom = meha::IOManager::GetCurrent();
         meha::Timer::ptr timer;
         std::weak_ptr<TimerInfo> timer_info_wp(timer_info);
         // 如果设置了超时时间，在指定时间后取消掉该 fd 的事件监听
@@ -172,8 +172,8 @@ unsigned int sleep(unsigned int seconds)
     if (!meha::t_hook_enabled) {
         return sleep_f(seconds);
     }
-    meha::Fiber::sptr fiber = meha::Fiber::GetThis();
-    auto iom = meha::IOManager::GetThis();
+    meha::Fiber::sptr fiber = meha::Fiber::GetCurrent();
+    auto iom = meha::IOManager::GetCurrent();
     assert(iom != nullptr && "这里的 IOManager 指针不可为空");
     iom->addTimer(seconds * 1000, [iom, fiber]() { iom->schedule(fiber); });
     meha::Fiber::YieldToHold();
@@ -188,8 +188,8 @@ int usleep(useconds_t usec)
     if (!meha::t_hook_enabled) {
         return usleep_f(usec);
     }
-    meha::Fiber::sptr fiber = meha::Fiber::GetThis();
-    auto iom = meha::IOManager::GetThis();
+    meha::Fiber::sptr fiber = meha::Fiber::GetCurrent();
+    auto iom = meha::IOManager::GetCurrent();
     assert(iom != nullptr && "这里的 IOManager 指针不可为空");
     iom->addTimer(usec / 1000, [iom, fiber]() { iom->schedule(fiber); });
     meha::Fiber::YieldToHold();
@@ -202,8 +202,8 @@ int nanosleep(const struct timespec *req, struct timespec *rem)
         return nanosleep_f(req, rem);
     }
     int timeout_ms = req->tv_sec * 1000 + req->tv_nsec / 1000 / 1000;
-    meha::Fiber::sptr fiber = meha::Fiber::GetThis();
-    auto iom = meha::IOManager::GetThis();
+    meha::Fiber::sptr fiber = meha::Fiber::GetCurrent();
+    auto iom = meha::IOManager::GetCurrent();
     assert(iom != nullptr && "这里的 IOManager 指针不可为空");
     iom->addTimer(timeout_ms, [iom, fiber]() { iom->schedule(fiber); });
     meha::Fiber::YieldToHold();
@@ -252,7 +252,7 @@ int connectWithTimeout(int sockfd, const struct sockaddr *addr, socklen_t addrle
      * connect 仍旧在进行还没有完成。 下一步就需要为其添加 write
      * 事件监听，当连接成功后会触发该事件。
      */
-    auto iom = meha::IOManager::GetThis();
+    auto iom = meha::IOManager::GetCurrent();
     meha::Timer::ptr timer;
     auto timer_info = std::make_shared<TimerInfo>();
     std::weak_ptr<TimerInfo> weak_timer_info(timer_info);
@@ -375,7 +375,7 @@ int close(int fd)
     }
     meha::FileDescriptor::ptr fdp = meha::FileDescriptorManager::GetInstance()->get(fd);
     if (fdp) {
-        auto iom = meha::IOManager::GetThis();
+        auto iom = meha::IOManager::GetCurrent();
         if (iom) {
             iom->cancelAll(fd);
         }

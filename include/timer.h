@@ -105,7 +105,7 @@ public:
      * @brief 获取下一个定时器的等待时间
      * @return 返回结果分为三种：无定时器等待执行返回 ~0ull，存在超时未执行的定时器返回 0，存在等待执行的定时器返回剩余的等待时间
      */
-    uint64_t getNextTimer();
+    uint64_t getNextTimer() const;
 
     /**
      * @brief 获取所有等待超时的定时器的回调函数对象，并将定时器从队列中移除，这个函数会自动将周期调用的定时器存回队列
@@ -135,7 +135,7 @@ private:
     bool detectClockRollover(uint64_t now_ms);
 
 private:
-    RWLockType m_lock;
+    mutable RWLockType m_lock;
     std::set<Timer::ptr, Timer::Comparator> m_timers;
     uint64_t m_previous_time = 0;
 };

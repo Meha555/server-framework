@@ -64,7 +64,11 @@ Fiber::Fiber() : m_id(0), m_stack_size(0), m_state(EXEC), m_ctx(), m_stack(nullp
 }
 
 Fiber::Fiber(FiberFunc callback, size_t stack_size)
-    : m_id(++s_fiber_id), m_state(INIT), m_ctx(), m_stack(nullptr), m_callback(std::move(callback))
+    : m_id(++s_fiber_id),
+      m_state(INIT),
+      m_ctx(),
+      m_stack(nullptr),
+      m_callback(std::move(callback))
 {
     // 注意这里创建的是子协程
     // 如果传入的 stack_size 为 0，使用配置项 "fiber.stack_size" 设置的值
@@ -180,8 +184,8 @@ void Fiber::yield()
 
 void Fiber::swapIn()
 {
-    //    assert(Scheduler::GetThis()->m_root_thread_id == -1 ||
-    //           Scheduler::GetThis()->m_root_thread_id != GetThreadID());
+    //    assert(Scheduler::GetCurrent()->m_root_thread_id == -1 ||
+    //           Scheduler::GetCurrent()->m_root_thread_id != GetThreadID());
     // 只有协程是等待执行的状态才能被换入
     ASSERT(m_state == INIT || m_state == READY || m_state == HOLD);
     SetThis(this);
@@ -198,8 +202,8 @@ void Fiber::swapIn()
 
 void Fiber::swapOut()
 {
-    //    assert(Scheduler::GetThis()->m_root_thread_id == -1 ||
-    //           Scheduler::GetThis()->m_root_thread_id != GetThreadID());
+    //    assert(Scheduler::GetCurrent()->m_root_thread_id == -1 ||
+    //           Scheduler::GetCurrent()->m_root_thread_id != GetThreadID());
     // 协程运行完之后会自动yield一次，用于回到主协程，此时状态已为结束状态
     ASSERT(m_state == EXEC || m_state == TERM);
     m_state = HOLD;
@@ -245,7 +249,7 @@ void Fiber::init()
     }
 }
 
-Fiber::sptr Fiber::GetThis()
+Fiber::sptr Fiber::GetCurrent()
 {
     //当前线程还没有创建协程
     if (t_current_fiber == nullptr) {
@@ -259,11 +263,11 @@ void Fiber::SetThis(Fiber *fiber) { t_current_fiber = fiber; }
 void Fiber::YieldToReady()
 {
     /* FIXME: 可能会造成 shared_ptr 的引用计数只增不减 */
-    Fiber::sptr current_fiber = GetThis();
+    Fiber::sptr current_fiber = GetCurrent();
     current_fiber->m_state = READY;
-    // if (Scheduler::GetThis() && Scheduler::GetThis()->m_root_thread_id == GetThreadID())
+    // if (Scheduler::GetCurrent() && Scheduler::GetCurrent()->m_root_thread_id == GetThreadID())
     // { // 调度器实例化时 use_caller 为 true, 并且当前协程所在的线程就是 root thread
-    //     // current_fiber->swapOut(Scheduler::GetThis()->m_root_fiber);
+    //     // current_fiber->swapOut(Scheduler::GetCurrent()->m_root_fiber);
     //     current_fiber->swapOut(t_master_fiber);
     // }
     // else
@@ -276,8 +280,8 @@ void Fiber::YieldToReady()
 void Fiber::YieldToHold()
 {
     /* FIXME: 可能会造成 shared_ptr 的引用计数只增不减 */
-    GetThis()->swapOut();
-    // if (Scheduler::GetThis() && Scheduler::GetThis()->m_root_thread_id == GetThreadID())
+    GetCurrent()->swapOut();
+    // if (Scheduler::GetCurrent() && Scheduler::GetCurrent()->m_root_thread_id == GetThreadID())
     // { // 调度器实例化时 use_caller 为 true, 并且当前协程所在的线程就是 root thread
     //     current_fiber->swapOut(t_master_fiber);
     // }
@@ -308,7 +312,7 @@ Fiber::State Fiber::GetCurrentState()
 // TODO 这个函数要看一下
 void Fiber::Run()
 {
-    auto current_fiber = GetThis(); // 这里会导致引用计数+1
+    auto current_fiber = GetCurrent();  // 这里会导致引用计数+1
     try {
         current_fiber->m_callback();  // 调用协程回调
         current_fiber->m_callback = nullptr;
@@ -323,11 +327,11 @@ void Fiber::Run()
     // 维护状态机的收尾工作
     // 执行结束后，切回主协程
     Fiber *current_fiber_ptr = current_fiber.get();
-    current_fiber.reset(); // 此时current_fiber的引用计数应该是2，reset后就是1
-    if (Scheduler::GetThis() && Scheduler::GetThis()->m_root_thread_id == GetThreadID() &&
-        Scheduler::GetThis()->m_root_fiber.get() !=
+    current_fiber.reset();  // 此时current_fiber的引用计数应该是2，reset后就是1
+    if (Scheduler::GetCurrent() && Scheduler::GetCurrent()->m_caller_thread_id == GetThreadID() &&
+        Scheduler::GetCurrent()->m_caller_fiber.get() !=
             current_fiber_ptr) {  // 调度器实例化时 use_caller 为 true, 并且当前协程所在的线程就是 root thread
-        // current_fiber_ptr->swapOut(Scheduler::GetThis()->m_root_fiber);
+        // current_fiber_ptr->swapOut(Scheduler::GetCurrent()->m_root_fiber);
         current_fiber_ptr->swapOut();
     } else {
         current_fiber_ptr->yield();  // 自动yield返回主协程

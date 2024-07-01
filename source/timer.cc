@@ -150,7 +150,7 @@ Timer::ptr TimerManager::addConditionTimer(
     return addTimer(ms, std::bind(&OnTimer, weak_cond, fn), cyclic);
 }
 
-uint64_t TimerManager::getNextTimer()
+uint64_t TimerManager::getNextTimer() const
 {
     ReadScopedLock lock(&m_lock);
     if (m_timers.empty())

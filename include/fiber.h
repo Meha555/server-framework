@@ -125,7 +125,7 @@ public:
     // 设置当前执行的协程
     static void SetThis(Fiber *fiber);
     // 获取当前正在执行的协程的智能指针，如果不存在，则在当前线程上创建主协程（通过调init实现）。
-    static sptr GetThis();
+    static sptr GetCurrent();
     // 获取当前协程 id
     static uint64_t GetCurrentID();
     // 获取当前协程状态

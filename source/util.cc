@@ -1,4 +1,5 @@
 #include "util.h"
+#include "exception.h"
 #include "fiber.h"
 #include "log.h"
 #include <chrono>
@@ -14,8 +15,7 @@ uint32_t GetThreadID()
 {
     uint32_t tid = ::syscall(SYS_gettid);
     if (tid == -1) {
-        LOG_FMT_FATAL(GET_ROOT_LOGGER(), "获取系统线程 tid 失败：%s", ::strerror(errno));
-        throw std::system_error();
+        throw SystemError("获取当前线程tid失败");
     }
     return tid;
 }

@@ -19,13 +19,13 @@ static Logger::ptr root_logger = GET_LOGGER("root");
  * ===================================================
  */
 
-IOManager *IOManager::GetThis()
+IOManager *IOManager::GetCurrent()
 {
     /**
      * NOTE: IOManager 继承于 Scheduler，
-     * 直接使用基类实现的 GetThis() 就可以了，将基类指针的类型转换成派生类的
+     * 直接使用基类实现的 GetCurrent() 就可以了，将基类指针的类型转换成派生类的
      * */
-    return dynamic_cast<IOManager *>(Scheduler::GetThis());
+    return dynamic_cast<IOManager *>(Scheduler::GetCurrent());
 }
 
 IOManager::IOManager(size_t thread_size, bool use_caller, std::string name)
@@ -145,14 +145,14 @@ int IOManager::addEventListener(int fd, FDEventType event, std::function<void()>
     FDContext::EventHandler &event_handler = fd_ctx->getEventHandler(event);
     // 确保没有给这个 fd 没有重复添加事件监听
     assert(event_handler.m_scheduler == nullptr && !event_handler.m_fiber && !event_handler.m_callback);
-    //    event_handler.m_scheduler = Scheduler::GetThis();
+    //    event_handler.m_scheduler = Scheduler::GetCurrent();
     event_handler.m_scheduler = this;
-    //    LOG_FMT_ERROR(root_logger, "调度器地址: %p", Scheduler::GetThis());
+    //    LOG_FMT_ERROR(root_logger, "调度器地址: %p", Scheduler::GetCurrent());
     if (callback) {
         event_handler.m_callback.swap(callback);
     } else {
         // 当 callback 是 nullptr 时，将当前上下文转换为协程，并作为时间回调使用
-        event_handler.m_fiber = Fiber::GetThis();
+        event_handler.m_fiber = Fiber::GetCurrent();
     }
     return 0;
 }
@@ -265,26 +265,26 @@ void IOManager::tickle()
     }
 }
 
-bool IOManager::isStop()
+bool IOManager::isStoped() const
 {
     uint64_t timeout;
-    return isStop(timeout);
+    return isStoped(timeout);
 }
 
-bool IOManager::isStop(uint64_t &timeout)
+bool IOManager::isStoped(uint64_t &timeout) const
 {
     timeout = getNextTimer();
-    return timeout == ~0ull && m_pending_event_count == 0 && Scheduler::isStop();
+    return timeout == ~0ull && m_pending_event_count == 0 && Scheduler::isStoped();
 }
 
-void IOManager::onIdle()
+void IOManager::doIdle()
 {
-    LOG_DEBUG(root_logger, "调用 IOManager::onIdle()");
+    LOG_DEBUG(root_logger, "调用 IOManager::doIdle()");
     auto event_list = std::make_unique<epoll_event[]>(64);
 
     while (true) {
         uint64_t next_timeout = 0;
-        if (isStop(next_timeout)) {
+        if (isStoped(next_timeout)) {
             // 没有等待执行的定时器
             if (next_timeout == ~0ull) {
                 LOG_FMT_DEBUG(root_logger, "调度器 %s 已停止执行", m_name.c_str());
@@ -379,7 +379,7 @@ void IOManager::onIdle()
         }
         // 让出当前线程的执行权，给调度器执行排队等待的协程
         // Fiber::YieldToHold();
-        Fiber::sptr current_fiber = Fiber::GetThis();
+        Fiber::sptr current_fiber = Fiber::GetCurrent();
         auto raw_ptr = current_fiber.get();
         current_fiber.reset();
         raw_ptr->swapOut();

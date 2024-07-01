@@ -129,7 +129,7 @@ Thread::~Thread()
     }
 }
 
-Thread *Thread::GetThis() { return t_this_thread; }
+Thread *Thread::GetCurrent() { return t_this_thread; }
 
 pid_t Thread::GetCurrentId() { return t_this_tid; }
 

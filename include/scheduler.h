@@ -3,78 +3,73 @@
 #pragma once
 
 #include "fiber.h"
+#include "mutex.hpp"
 #include "thread.h"
 #include <atomic>
 #include <list>
 #include <memory>
 #include <unistd.h>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace meha {
 
 /**
  * @brief 协程调度器
+ * @details 封装了线程N:协程M的协程调度器，内部有一个线程池，支持协程在线程池的线程间切换
  * */
 class Scheduler : public noncopyable {
-private:  // 内部类
+private:
     /**
-     * @brief 任务类
+     * @brief 任务包装类
      * 等待分配线程执行的任务，可以是 meha::Fiber 或 std::function
      * */
     struct Task
     {
-        using ptr = std::shared_ptr<Task>;
+        using sptr = std::shared_ptr<Task>;
         using uptr = std::unique_ptr<Task>;
         using TaskFunc = std::function<void()>;
+        using TaskFiber = Fiber::sptr;
 
-        Fiber::sptr fiber;
-        TaskFunc callback;
-        long thread_id;  // 任务要绑定执行线程的 id
+        std::variant<TaskFiber, TaskFunc, std::nullptr_t> handle{nullptr};
+        pid_t thread_id{-1};  // 可选的: 制定执行该任务的线程的id
 
-        Task() : thread_id(-1) {}
+        explicit Task() : handle(nullptr), thread_id(-1) {}
+        Task(decltype(handle) &&v, pid_t tid) : handle(std::move(v)), thread_id(tid) {}
 
-        Task(const Task &rhs) = default;
-
-        Task(Fiber::sptr f, long tid) : fiber(std::move(f)), thread_id(tid) {}
-
-        Task(const TaskFunc &cb, long tid) : callback(cb), thread_id(tid) {}
-
-        Task(TaskFunc &&cb, long tid) : callback(std::move(cb)), thread_id(tid) {}
-
-        Task &operator=(const Task &rhs) = default;
-
-        void reset()
+        // 重置状态
+        void clear()
         {
-            fiber = nullptr;
-            callback = nullptr;
+            handle = nullptr;
             thread_id = -1;
         }
     };
 
-public:  // 内部类型、静态方法、友元声明
+public:
     friend class Fiber;
-    using ptr = std::shared_ptr<Scheduler>;
+    using sptr = std::shared_ptr<Scheduler>;
     using uptr = std::unique_ptr<Scheduler>;
 
-    // 获取当前协程的调度器
-    static Scheduler *GetThis();
-    // 获取调度器的调度工作协程
+    // 获取当前的调度器
+    static Scheduler *GetCurrent();
+    // 获取当前调度器的调度协程
     static Fiber *GetMainFiber();
 
-public:  // 实例方法
+public:
     /**
      * @brief 构造函数
      * @param thread_size 线程池线程数量
-     * @param use_caller 是否将 Scheduler 实例化所在的线程作为 master fiber
+     * @param use_caller 是否将 Scheduler 所在的线程作为 master fiber
      * @param name 调度器名称
      * */
-    explicit Scheduler(size_t thread_size, bool use_caller = true, std::string name = "");
+    explicit Scheduler(size_t thread_size = 1, bool use_caller = true, std::string name = "default");
     virtual ~Scheduler();
-
+    // 开始调度（启动调度线程）
     void start();
+    // 停止调度（回收调度线程）
     void stop();
-    virtual bool isStop();
+    virtual bool isStoped() const;
     bool hasIdleThread() const { return m_idle_thread_count > 0; }
 
     /**
@@ -82,20 +77,20 @@ public:  // 实例方法
      * @param Executable 模板类型必须是 std::unique_ptr<meha::Fiber> 或者 std::function
      * @param exec Executable 的实例
      * @param instant 是否优先调度
-     * @param thread_id 任务要绑定执行线程的 id
+     * @param thread_id 任务要绑定执行线程的 id，-1表示任务不绑定线程（即任意线程均可）
      * */
     template <typename Executable>
-    void schedule(Executable &&exec, long thread_id = -1, bool instant = false)
+    void schedule(Executable &&exec, pid_t thread_id = -1, bool instant = false)
     {
         bool need_tickle = false;
         {
-            ScopedLock lock(&m_mutex);
-            // std::forward
-            need_tickle = scheduleNonBlock(std::forward<Executable>(exec), thread_id);
+            WriteScopedLock lock(&m_mutex);
+            need_tickle = addTask(std::forward<Executable>(exec), thread_id);
         }
-        // 该工作了
-        if (need_tickle)
+        // 通知调度器开始新的任务分发调度
+        if (need_tickle) {
             tickle();
+        }
     }
 
     /**
@@ -108,9 +103,9 @@ public:  // 实例方法
     {
         bool need_tickle = false;
         {
-            ScopedLock lock(&m_mutex);
+            WriteScopedLock lock(&m_mutex);
             while (begin != end) {
-                need_tickle = scheduleNonBlock(*begin) || need_tickle;
+                need_tickle = addTask(*begin) || need_tickle;
                 ++begin;
             }
         }
@@ -120,17 +115,20 @@ public:  // 实例方法
     }
 
 protected:
+    // 执行调度
     void run();
+    // 以下函数没有写成static的是希望继承时重写
+
+    // 通知调度器有新任务
     virtual void tickle();
     // 调度器停止时的回调函数，返回调度器当前是否处于停止工作的状态
-    virtual bool onStop() { return isStop(); }
+    virtual bool doStop() const { return isStoped(); }
     // 调度器空闲时的回调函数
-    virtual void onIdle()
+    virtual void doIdle()
     {
-        while (!isStop()) {
+        while (!isStoped()) {
             Fiber::YieldToHold();
         }
-        return;
     }
 
 private:
@@ -140,16 +138,16 @@ private:
      * @param exec Executable 的实例
      * @param thread_id 任务要绑定执行线程的 id
      * @param instant 是否优先调度
-     * @return 是否是空闲状态下的第一个新任务
+     * @return 是否是空闲状态下的第一个新任务（//REVIEW 注意是空闲状态，这是为什么）
      * */
     template <typename Executable>
-    bool scheduleNonBlock(Executable &&exec, long thread_id = -1, bool instant = false)
+    bool addTask(Executable &&exec, pid_t thread_id = -1, bool instant = false)
     {
         bool need_tickle = m_task_list.empty();
-        // std::forward
         auto task = std::make_unique<Task>(std::forward<Executable>(exec), thread_id);
         // 创建的任务实例存在有效的 meha::Fiber 或 std::function
-        if (task->fiber || task->callback) {
+        if (std::holds_alternative<Task::TaskFiber>(task->handle) ||
+            std::holds_alternative<Task::TaskFunc>(task->handle)) {
             if (instant)
                 m_task_list.push_front(std::move(task));
             else
@@ -160,29 +158,27 @@ private:
 
 protected:
     const std::string m_name;
-    // 主线程 id，仅在 use_caller 为 true 时会被设置有效线程 id
-    long m_root_thread_id = 0;
-    // 线程 id 列表
-    std::vector<long> m_thread_id_list;
+    // 复用主线程 id，仅在 use_caller 为 true 时会被设置有效线程 id
+    pid_t m_caller_thread_id = 0;
     // 有效线程数量
     size_t m_thread_count = 0;
     // 活跃线程数量
-    std::atomic_uint64_t m_active_thread_count{};
+    std::atomic_uint64_t m_active_thread_count{0};
     // 空闲线程数量
-    std::atomic_uint64_t m_idle_thread_count{};
+    std::atomic_uint64_t m_idle_thread_count{0};
     // 执行停止状态
-    bool m_stopping = true;
+    bool m_stoped = true;
     // 是否自动停止
     bool m_auto_stop = false;
 
 private:
-    mutable Mutex m_mutex;
+    mutable RWLock m_mutex;
     // 负责调度的协程，仅在类实例化参数中 use_caller 为 true 时有效
-    Fiber::sptr m_root_fiber;
-    // 线程对象列表
-    std::vector<Thread::sptr> m_thread_list;
-    // 任务集合
-    std::list<Task::ptr> m_task_list;
+    Fiber::sptr m_caller_fiber;
+    // 调度线程池
+    std::vector<Thread::sptr> m_thread_pool;
+    // 任务队列（任务由协程执行，而协程由线程调度）
+    std::list<Task::sptr> m_task_list;
 };
 }  // namespace meha
 

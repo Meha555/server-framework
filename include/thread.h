@@ -54,7 +54,7 @@ public:
     // 获取当前运行线程的名称
     static const std::string_view &GetCurrentName();
     // 设置当前运行线程的名称（这个静态的setter是为了能够给主线程命名，因为主线程不是我们创建的，所以没有对应的Thread对象，而我们又想要对其进行操作，所以利用了thread_local）
-    static void SetCurrentName(const std::string_view &name);
+    static void SetCurrentName(const std::string_view &name = "annoymous_thread");
 
 private:
     // pthread 线程句柄(id)

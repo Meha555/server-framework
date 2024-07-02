@@ -45,7 +45,7 @@ public:
 private:
     SpinLock m_mutex;  // 这里就要用自旋锁了
     uint32_t m_concurency;
-    std::list<std::pair<Scheduler *, typename Fiber::sptr>> m_waiting_fibers;
+    std::list<std::pair<Scheduler *, typename Fiber::sptr>> m_waiting_list; // 等待队列
 };
 
 }

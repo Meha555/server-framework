@@ -1,3 +1,11 @@
+/*
+ * @Author: Meha555 wdsjhzy@163.com
+ * @Date: 2024-07-01 17:54:40
+ * @LastEditors: Meha555 wdsjhzy@163.com
+ * @LastEditTime: 2024-07-02 10:05:03
+ * @FilePath: /server-framework/source/sem.cc
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 #include "sem.h"
 #include "log.h"
 #include "scheduler.h"
@@ -8,39 +16,27 @@ static Logger::ptr root_logger = GET_LOGGER("root");
 
 ThreadSemaphore::ThreadSemaphore(uint32_t count)
 {
-    if (sem_init(&m_semaphore, 0, count)) {
-        LOG_FMT_FATAL(root_logger, "sem_init() 初始化信号量失败：%s", ::strerror(errno));
-        throw std::system_error();  // FIXME 有观点认为构造函数最好不要抛出异常
-    }
+    ASSERT(sem_init(&m_semaphore, 0, count) == 0);
 }
 
 ThreadSemaphore::~ThreadSemaphore()
 {
-    if (sem_destroy(&m_semaphore)) {
-        LOG_FMT_FATAL(root_logger, "sem_destroy() 销毁信号量失败：%s", ::strerror(errno));
-    }
+    ASSERT(sem_destroy(&m_semaphore) == 0);
 }
 
 void ThreadSemaphore::wait()
 {
-    if (sem_wait(&m_semaphore)) {
-        LOG_FMT_FATAL(root_logger, "sem_wait() 异常：%s", ::strerror(errno));
-        throw std::system_error();
-        // TODO 失败时是否应该直接结束程序？
-    }
+    ASSERT(sem_wait(&m_semaphore) == 0);
 }
 
 void ThreadSemaphore::post()
 {
-    if (sem_post(&m_semaphore)) {
-        LOG_FMT_FATAL(root_logger, "sem_post() 异常：%s", ::strerror(errno));
-        throw std::system_error();
-    }
+    ASSERT(sem_post(&m_semaphore) == 0);
 }
 
 FiberSemaphore::FiberSemaphore(uint32_t concurency) : m_concurency(concurency) {}
 
-FiberSemaphore::~FiberSemaphore() { ASSERT(m_waiting_fibers.empty()); }
+FiberSemaphore::~FiberSemaphore() { ASSERT(m_waiting_list.empty()); }
 
 bool FiberSemaphore::tryWait()
 {
@@ -62,7 +58,7 @@ void FiberSemaphore::wait()
             --m_concurency;
             return;
         } else {
-            m_waiting_fibers.emplace_back(std::make_pair(Scheduler::GetCurrent(), Fiber::GetCurrent()));
+            m_waiting_list.emplace_back(std::make_pair(Scheduler::GetCurrent(), Fiber::GetCurrent()));
         }
     }
     //挂在信号量等待队列上，解锁，挂起当前协程
@@ -72,9 +68,9 @@ void FiberSemaphore::wait()
 void FiberSemaphore::post()
 {
     SpinScopedLock lock(&m_mutex);
-    if (!m_waiting_fibers.empty()) {
-        auto next = m_waiting_fibers.front();  //取队首协程来调度
-        m_waiting_fibers.pop_front();
+    if (!m_waiting_list.empty()) {
+        auto next = m_waiting_list.front();  //取队首协程来调度
+        m_waiting_list.pop_front();
         next.first->schedule(next.second);
     } else {
         ++m_concurency;

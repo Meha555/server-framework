@@ -9,8 +9,6 @@
 
 namespace meha {
 
-#define DEFAULT_THREAD_NAME "UNNAMED_THREAD"
-
 static Logger::ptr root_logger = GET_LOGGER("root");
 
 /* --------------------------------- 线程局部变量 --------------------------------- */
@@ -19,7 +17,7 @@ static Logger::ptr root_logger = GET_LOGGER("root");
 static thread_local Thread *t_this_thread{nullptr};
 static thread_local pid_t t_this_tid{0};
 // 当前线程的线程名
-static thread_local std::string_view t_this_tname{DEFAULT_THREAD_NAME};
+static thread_local std::string_view t_this_tname{"annoymous_thread"};
 
 /* ------------------------------------ 锁 ----------------------------------- */
 
@@ -109,7 +107,6 @@ Thread::Thread(ThreadFunc callback, const std::string_view &name)
     if (ret) {  // 创建线程失败
         t_this_thread = nullptr;
         t_this_tid = -1;
-        t_this_tname = DEFAULT_THREAD_NAME;
         delete closure;
         ASSERT_FMT(ret == 0, "创建线程 %s 失败：%s", name.data(), strerror(errno));
     } else {  // 创建线程成功
@@ -135,7 +132,7 @@ pid_t Thread::GetCurrentId() { return t_this_tid; }
 
 const std::string_view &Thread::GetCurrentName() { return t_this_tname; }
 
-void Thread::SetCurrentName(const std::string_view &name) { t_this_tname = name.empty() ? DEFAULT_THREAD_NAME : name; }
+void Thread::SetCurrentName(const std::string_view &name) { t_this_tname = name; }
 
 void Thread::join()
 {

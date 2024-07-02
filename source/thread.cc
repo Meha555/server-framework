@@ -110,7 +110,8 @@ Thread::Thread(ThreadFunc callback, const std::string_view &name)
         delete closure;
         ASSERT_FMT(ret == 0, "创建线程 %s 失败：%s", name.data(), strerror(errno));
     } else {  // 创建线程成功
-              //注意这里是在主线程中，先让主线程停住，因为要为子线程绑定ID、设置名字之类，而我采用的是thread_local变量来存储的，因此需要在子线程来设置
+              // 注意这里是在主线程中，先让主线程停住，因为要为子线程绑定ID、设置名字之类，且还没那么快开跑任务worker，所以需要同步一下
+              // 我采用的是thread_local变量来存储的，因此需要在子线程来设置
         m_sem_sync.wait();
     }
 }
@@ -118,9 +119,8 @@ Thread::Thread(ThreadFunc callback, const std::string_view &name)
 Thread::~Thread()
 {
     LOG_FMT_DEBUG(GET_ROOT_LOGGER(), "分离线程%s[%d]", GetCurrentName().data(), GetThreadID());
-    // POSIX线程的一个特点是：除非线程是被分离了的，否则在线程退出时，它的资源是不会被释放的，需要调用pthread_join回收，在其所属进程退出后，才释放所有资源。
     // 而我们不希望阻塞主线程，因此这里用detach
-    //  如果线程有效且不为join，将线程与主线程分离
+    // 如果线程有效且不为join，将线程与主线程分离
     if (m_started && !m_joined) {
         pthread_detach(m_thread);
     }

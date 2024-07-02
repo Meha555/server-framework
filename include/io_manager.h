@@ -48,7 +48,7 @@ public:  // 内部类型
     using LockType = meha::RWLock;
 
 public:  // 实例方法
-    explicit IOManager(size_t thread_size, bool use_caller = false, std::string name = "");
+    explicit IOManager(size_t pool_size, bool as_master = false);
     ~IOManager() override;
 
     // thread-safe 给指定的 fd 增加事件监听，当 callback 是 nullptr 时，将当前上下文转换为协程，并作为事件回调使用

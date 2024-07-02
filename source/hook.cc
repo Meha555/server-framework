@@ -142,7 +142,7 @@ RETRY:
             }
             return -1;
         }
-        meha::Fiber::YieldToHold();
+        // meha::Fiber::YieldToHold(); //FIXME
 
         if (timer) {
             timer->cancel();
@@ -176,7 +176,7 @@ unsigned int sleep(unsigned int seconds)
     auto iom = meha::IOManager::GetCurrent();
     assert(iom != nullptr && "这里的 IOManager 指针不可为空");
     iom->addTimer(seconds * 1000, [iom, fiber]() { iom->schedule(fiber); });
-    meha::Fiber::YieldToHold();
+    // meha::Fiber::YieldToHold(); // FIXME
     return 0;
 }
 
@@ -192,7 +192,7 @@ int usleep(useconds_t usec)
     auto iom = meha::IOManager::GetCurrent();
     assert(iom != nullptr && "这里的 IOManager 指针不可为空");
     iom->addTimer(usec / 1000, [iom, fiber]() { iom->schedule(fiber); });
-    meha::Fiber::YieldToHold();
+    // meha::Fiber::YieldToHold(); //FIXME
     return 0;
 }
 
@@ -206,7 +206,7 @@ int nanosleep(const struct timespec *req, struct timespec *rem)
     auto iom = meha::IOManager::GetCurrent();
     assert(iom != nullptr && "这里的 IOManager 指针不可为空");
     iom->addTimer(timeout_ms, [iom, fiber]() { iom->schedule(fiber); });
-    meha::Fiber::YieldToHold();
+    // meha::Fiber::YieldToHold(); //FIXME
     return 0;
 }
 
@@ -273,7 +273,7 @@ int connectWithTimeout(int sockfd, const struct sockaddr *addr, socklen_t addrle
 
     int rt = iom->addEventListener(sockfd, meha::FDEventType::WRITE);
     if (rt == 0) {
-        meha::Fiber::YieldToHold();
+        // meha::Fiber::YieldToHold(); // FIXME
         if (timer) {
             timer->cancel();
         }

@@ -6,6 +6,7 @@
 #include "mutex.hpp"
 #include "thread.h"
 #include <atomic>
+#include <ctime>
 #include <list>
 #include <memory>
 #include <unistd.h>
@@ -18,25 +19,25 @@ namespace meha {
 /**
  * @brief 协程调度器
  * @details 封装了线程N:协程M的协程调度器，内部有一个线程池，支持协程在线程池的线程间切换
+ * @note 由于协程调度器会维护线程池且可以利用所在的线程，因此仅允许一个线程中存在一个调度器
  * */
 class Scheduler : public noncopyable {
 private:
     /**
      * @brief 任务包装类
-     * 等待分配线程执行的任务，可以是 meha::Fiber 或 std::function
+     * @note 任务可以是协程对象，也可以是可调用对象，会自动构造为协程
      * */
     struct Task
     {
         using sptr = std::shared_ptr<Task>;
         using uptr = std::unique_ptr<Task>;
-        using TaskFunc = std::function<void()>;
-        using TaskFiber = Fiber::sptr;
 
-        std::variant<TaskFiber, TaskFunc, std::nullptr_t> handle{nullptr};
+        Fiber::sptr handle{nullptr};
         pid_t thread_id{-1};  // 可选的: 制定执行该任务的线程的id
 
         explicit Task() : handle(nullptr), thread_id(-1) {}
-        Task(decltype(handle) &&v, pid_t tid) : handle(std::move(v)), thread_id(tid) {}
+        Task(const Fiber::sptr &f, pid_t tid) : handle(std::move(f)), thread_id(tid) {}
+        Task(const Fiber::FiberFunc &cb, pid_t tid) : handle(std::make_shared<Fiber>(cb)), thread_id(tid) {}
 
         // 重置状态
         void clear()
@@ -47,6 +48,17 @@ private:
     };
 
 public:
+    /**
+     * @brief 调度策略 //TODO 还没实现，可以参考一下STL中的适配器
+     * @note 由于估计任务运行时间不知道怎么做，所以只设想了这几种
+     */
+    enum Policy
+    {
+        FCFS,  // 先来先服务（默认）
+        PSA,   // 优先级调度
+        MIX,   // 两者混合
+    };
+
     friend class Fiber;
     using sptr = std::shared_ptr<Scheduler>;
     using uptr = std::unique_ptr<Scheduler>;
@@ -59,11 +71,11 @@ public:
 public:
     /**
      * @brief 构造函数
-     * @param thread_size 线程池线程数量
-     * @param use_caller 是否将 Scheduler 所在的线程作为 master fiber
+     * @param pool_size 线程池线程数量
+     * @param as_master 是否将 Scheduler 所在的线程作为 master fiber
      * @param name 调度器名称
      * */
-    explicit Scheduler(size_t thread_size = 1, bool use_caller = true, std::string name = "default");
+    explicit Scheduler(size_t pool_size = 1, bool as_master = true);
     virtual ~Scheduler();
     // 开始调度（启动调度线程）
     void start();
@@ -127,7 +139,7 @@ protected:
     virtual void doIdle()
     {
         while (!isStoped()) {
-            Fiber::YieldToHold();
+            // Fiber::YieldToHold(); //FIXME
         }
     }
 
@@ -136,7 +148,7 @@ private:
      * @brief 添加任务 non-thread-safe
      * @param Executable 模板类型必须是 std::unique_ptr<meha::Fiber> 或者 std::function
      * @param exec Executable 的实例
-     * @param thread_id 任务要绑定执行线程的 id
+     * @param thread_id 任务要绑定执行线程的 id //TODO 还没实现
      * @param instant 是否优先调度
      * @return 是否是空闲状态下的第一个新任务（//REVIEW 注意是空闲状态，这是为什么）
      * */
@@ -145,9 +157,7 @@ private:
     {
         bool need_tickle = m_task_list.empty();
         auto task = std::make_unique<Task>(std::forward<Executable>(exec), thread_id);
-        // 创建的任务实例存在有效的 meha::Fiber 或 std::function
-        if (std::holds_alternative<Task::TaskFiber>(task->handle) ||
-            std::holds_alternative<Task::TaskFunc>(task->handle)) {
+        if (task->handle) {
             if (instant)
                 m_task_list.push_front(std::move(task));
             else
@@ -157,13 +167,12 @@ private:
     }
 
 protected:
-    const std::string m_name;
-    // 复用主线程 id，仅在 use_caller 为 true 时会被设置有效线程 id
+    // 复用主线程 id，仅在 as_master == true 时会被设置有效线程 id
     pid_t m_caller_thread_id = 0;
-    // 有效线程数量
-    size_t m_thread_count = 0;
-    // 活跃线程数量
-    std::atomic_uint64_t m_active_thread_count{0};
+    // 线程池大小
+    size_t m_thread_pool_size = 0;
+    // 工作线程数量（工作线程里面跑着任务协程）
+    std::atomic_uint64_t m_working_thread_count{0};
     // 空闲线程数量
     std::atomic_uint64_t m_idle_thread_count{0};
     // 执行停止状态
@@ -173,11 +182,11 @@ protected:
 
 private:
     mutable RWLock m_mutex;
-    // 负责调度的协程，仅在类实例化参数中 use_caller 为 true 时有效
+    // 调度者协程，仅在类实例化参数中 as_master 为 true 时有效
     Fiber::sptr m_caller_fiber;
-    // 调度线程池
+    // 工作线程池
     std::vector<Thread::sptr> m_thread_pool;
-    // 任务队列（任务由协程执行，而协程由线程调度）
+    // 任务队列（任务由任务协程执行，而任务协程由工作线程中的调度者协程调度）
     std::list<Task::sptr> m_task_list;
 };
 }  // namespace meha

@@ -12,7 +12,7 @@ void fn()
 {
     for (int i = 0; i < 3; i++) {
         std::cout << "啊啊啊啊啊啊" << std::endl;
-        Fiber::YieldToHold();
+        // Fiber::YieldToHold(); // FIXME
     }
 }
 
@@ -20,7 +20,7 @@ void fn2()
 {
     for (int i = 0; i < 3; i++) {
         std::cout << "哦哦哦哦哦哦" << std::endl;
-        Fiber::YieldToHold();
+        // Fiber::YieldToHold(); //FIXME
     }
 }
 

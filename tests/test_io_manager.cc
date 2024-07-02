@@ -15,7 +15,7 @@ void test_fiber()
     for (int i = 0; i < 3; i++)
     {
         LOG_INFO(g_logger, "hello test");
-        meha::Fiber::YieldToHold();
+        // meha::Fiber::YieldToHold(); //FIXME
     }
 }
 

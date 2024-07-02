@@ -28,8 +28,8 @@ IOManager *IOManager::GetCurrent()
     return dynamic_cast<IOManager *>(Scheduler::GetCurrent());
 }
 
-IOManager::IOManager(size_t thread_size, bool use_caller, std::string name)
-    : Scheduler(thread_size, use_caller, std::move(name))
+IOManager::IOManager(size_t pool_size, bool as_master)
+    : Scheduler(pool_size, as_master)
 {
     LOG_DEBUG(root_logger, "调用 IOManager::IOManager()");
     // 创建 epoll
@@ -287,7 +287,7 @@ void IOManager::doIdle()
         if (isStoped(next_timeout)) {
             // 没有等待执行的定时器
             if (next_timeout == ~0ull) {
-                LOG_FMT_DEBUG(root_logger, "调度器 %s 已停止执行", m_name.c_str());
+                LOG_FMT_DEBUG(root_logger, "调度器@%p 已停止执行", this);
                 break;
             }
         }
@@ -382,7 +382,8 @@ void IOManager::doIdle()
         Fiber::sptr current_fiber = Fiber::GetCurrent();
         auto raw_ptr = current_fiber.get();
         current_fiber.reset();
-        raw_ptr->swapOut();
+        // raw_ptr->swapOut();
+        raw_ptr->yield();
     }
 }
 

@@ -62,7 +62,7 @@ void FiberSemaphore::wait()
         }
     }
     //挂在信号量等待队列上，解锁，挂起当前协程
-    Fiber::YieldToHold();
+    // Fiber::YieldToHold(); //FIXME
 }
 
 void FiberSemaphore::post()

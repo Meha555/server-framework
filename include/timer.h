@@ -20,7 +20,7 @@ class Timer : public std::enable_shared_from_this<Timer>
     friend class TimerManager;
 
 public:
-    typedef std::shared_ptr<Timer> ptr;
+    using ptr = std::shared_ptr<Timer>;
 
     /**
      * @brief 取消定时器
@@ -37,32 +37,33 @@ public:
     /**
      * @brief 重新计时
      */
-    bool refresh();
+    bool restart();
 
 private:
     /**
      * @brief Constructor
-     * @param ms 延迟时间
+     * @param elapse 延迟时间(ms)
      * @param fn 回调函数
      * @param cyclic 是否重复执行
      * @param manager 执行环境
      */
-    Timer(uint64_t ms, std::function<void()> fn,
+    Timer(uint64_t elapse, std::function<void()> cb,
           bool cyclic, TimerManager* manager);
 
     /**
      * @brief 用于创建只有时间信息的定时器，基本是用于查找超时的定时器，无其他作用
      */
-    Timer(uint64_t next);
+    explicit Timer(uint64_t next);
 
 private:
     bool m_cyclic = false; // 是否重复
-    uint64_t m_ms = 0;     // 执行周期
-    uint64_t m_next = 0;   // 执行的绝对时间戳
-    std::function<void()> m_fn;
+    uint64_t m_elapsetime_relative = 0; // 执行周期（相对超时时间ms）
+    uint64_t m_nexttime_absolute = 0;   // 执行的绝对时间戳（ms）
+    std::function<void()> m_callback{nullptr}; // 定时任务回调
     TimerManager* m_manager = nullptr;
 
 private:
+    // 比较两个Timer对象，比较的依据是绝对超时时间 //TODO 这里可以不可以直接重写operator<
     struct Comparator
     {
         bool operator()(const Timer::ptr& lhs, const Timer::ptr& rhs) const;
@@ -71,16 +72,16 @@ private:
 
 /**
  * @brief 定时器调度类
+ * @details 基于小根堆实现
  */
 class TimerManager
 {
     friend class Timer;
 
 public:
-    using RWLockType = RWLock;
 
     TimerManager();
-    virtual ~TimerManager();
+    virtual ~TimerManager() = default;
 
     /**
      * @brief 新增一个普通定时器
@@ -135,7 +136,7 @@ private:
     bool detectClockRollover(uint64_t now_ms);
 
 private:
-    mutable RWLockType m_lock;
+    mutable RWLock m_lock;
     std::set<Timer::ptr, Timer::Comparator> m_timers;
     uint64_t m_previous_time = 0;
 };

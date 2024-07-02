@@ -82,13 +82,15 @@ void Backtrace(std::vector<std::string> &out, int size, int skip)
 
 std::string BacktraceToString(int size, int skip)
 {
-    std::vector<std::string> call_stack;
-    Backtrace(call_stack, size, skip);
-    std::stringstream ss;
-    for (const auto &item : call_stack) {
-        ss << item << '\n';
-    }
-    return ss.str();
+    // std::vector<std::string> call_stack;
+    // Backtrace(call_stack, size, skip);
+    // std::stringstream ss;
+    // for (const auto &item : call_stack) {
+    //     ss << item << '\n';
+    // }
+    // return ss.str();
+    // FIXME 当前系统输出的backtrace格式不一致
+  return "";
 }
 
 std::chrono::milliseconds GetCurrentMS()

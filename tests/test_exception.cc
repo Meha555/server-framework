@@ -20,7 +20,7 @@ void throw_system_error()
     }
 }
 
-TEST(TEST_CASE, 测试打印调用栈)
+TEST(TEST_CASE, printBackTrace)
 {
     try {
         fn(10);

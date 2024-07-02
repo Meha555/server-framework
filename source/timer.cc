@@ -3,49 +3,41 @@
 namespace meha
 {
 
-bool Timer::Comparator::operator()(
-    const Timer::ptr& lhs, const Timer::ptr& rhs) const
+bool Timer::Comparator::operator()(const Timer::ptr& lhs, const Timer::ptr& rhs) const
 {
     // 判断指针的有效性
     if (!lhs && !rhs)
         return false;
-    if (!lhs)
+    else if (!lhs)
         return true;
-    if (!rhs)
+    else if (!rhs)
         return false;
     // 按绝对时间戳排序
-    if (lhs->m_next < rhs->m_next)
-    {
-        return true;
-    }
-    else if (rhs->m_next < lhs->m_next)
-    {
-        return false;
-    }
-    // 时间戳相同就按指针排序
-    return lhs.get() < rhs.get();
+    if(lhs->m_nexttime_absolute != rhs->m_nexttime_absolute)
+        return lhs->m_nexttime_absolute < rhs->m_nexttime_absolute;
+    else // 时间戳相同就按指针排序
+        return lhs.get() < rhs.get();
 }
 
-Timer::Timer(
-    uint64_t ms, std::function<void()> fn, bool cyclic, TimerManager* manager)
+Timer::Timer(uint64_t elapse, std::function<void()> cb, bool cyclic, TimerManager* manager)
     : m_cyclic(cyclic),
-      m_ms(ms),
-      m_fn(fn),
+      m_elapsetime_relative(elapse),
+      m_callback(cb),
       m_manager(manager)
 {
-    m_next = GetCurrentMS().count(); + m_ms;
+    m_nexttime_absolute = GetCurrentMS().count() + m_elapsetime_relative;
 }
 
-Timer::Timer(uint64_t next) : m_next(next)
+Timer::Timer(uint64_t next) : m_nexttime_absolute(next)
 {
 }
 
 bool Timer::cancel()
 {
     WriteScopedLock lock(&m_manager->m_lock);
-    if (m_fn)
+    if (m_callback)
     {
-        m_fn = nullptr;
+        m_callback = nullptr;
         auto it = m_manager->m_timers.find(shared_from_this());
         m_manager->m_timers.erase(it);
         return true;
@@ -53,13 +45,13 @@ bool Timer::cancel()
     return false;
 }
 
-bool Timer::reset(uint64_t ms, bool from_now)
+bool Timer::reset(uint64_t elapse, bool from_now)
 {
-    if (ms == m_ms && !from_now)
+    if (elapse == m_elapsetime_relative && !from_now)
     {
         return true;
     }
-    if (!m_fn)
+    if (!m_callback)
     {
         return false;
     }
@@ -78,19 +70,19 @@ bool Timer::reset(uint64_t ms, bool from_now)
     }
     else
     {
-        start = m_next - m_ms;
+        start = m_nexttime_absolute - m_elapsetime_relative;
     }
-    m_ms = ms;
-    m_next = start + m_ms;
+    m_elapsetime_relative = elapse;
+    m_nexttime_absolute = start + m_elapsetime_relative;
     // it = m_manager->m_timers.insert(shared_from_this()).first;
     m_manager->addTimer(shared_from_this(), lock);
     return true;
 }
 
-bool Timer::refresh()
+bool Timer::restart()
 {
     WriteScopedLock lock(&m_manager->m_lock);
-    if (!m_fn)
+    if (!m_callback)
     {
         return false;
     }
@@ -100,7 +92,7 @@ bool Timer::refresh()
         return false;
     }
     m_manager->m_timers.erase(it);
-    m_next = GetCurrentMS().count(); + m_ms;
+    m_nexttime_absolute = GetCurrentMS().count(); + m_elapsetime_relative;
     m_manager->m_timers.insert(shared_from_this());
     return true;
 }
@@ -108,10 +100,6 @@ bool Timer::refresh()
 TimerManager::TimerManager()
 {
     m_previous_time = GetCurrentMS().count();;
-}
-
-TimerManager::~TimerManager()
-{
 }
 
 Timer::ptr TimerManager::addTimer(
@@ -160,7 +148,7 @@ uint64_t TimerManager::getNextTimer() const
     }
     const Timer::ptr& next = *m_timers.begin();
     uint64_t now_ms = GetCurrentMS().count();
-    if (now_ms >= next->m_next)
+    if (now_ms >= next->m_nexttime_absolute)
     {
         // 等待超时
         return 0;
@@ -168,7 +156,7 @@ uint64_t TimerManager::getNextTimer() const
     else
     {
         // 返回剩余的等待时间
-        return next->m_next - now_ms;
+        return next->m_nexttime_absolute - now_ms;
     }
 }
 
@@ -187,7 +175,7 @@ void TimerManager::listExpiredCallback(std::vector<std::function<void()>>& fns)
     // 检查系统时间是否被修改
     bool rollover = detectClockRollover(now_ms);
     // 系统时间未被回拨，并且无定时器等待超时
-    if (!rollover && (*m_timers.begin())->m_next > now_ms)
+    if (!rollover && (*m_timers.begin())->m_nexttime_absolute > now_ms)
     {
         return;
     }
@@ -197,7 +185,7 @@ void TimerManager::listExpiredCallback(std::vector<std::function<void()>>& fns)
     // ** 如果系统时间被修改过，直接认定所有定时器均超时 **
     auto it = rollover ? m_timers.end() : m_timers.lower_bound(now_timer);
     // 包括上到达指定时间的定时器
-    while (it != m_timers.end() && (*it)->m_next == now_timer->m_next)
+    while (it != m_timers.end() && (*it)->m_nexttime_absolute == now_timer->m_nexttime_absolute)
     {
         ++it;
     }
@@ -207,16 +195,16 @@ void TimerManager::listExpiredCallback(std::vector<std::function<void()>>& fns)
     fns.reserve(expired.size());
     for (auto& timer : expired)
     {
-        fns.push_back(timer->m_fn);
+        fns.push_back(timer->m_callback);
         // 处理周期定时器
         if (timer->m_cyclic)
         {
-            timer->m_next = now_ms + timer->m_ms;
+            timer->m_nexttime_absolute = now_ms + timer->m_elapsetime_relative;
             m_timers.insert(timer);
         }
         else
         {
-            timer->m_fn = nullptr;
+            timer->m_callback = nullptr;
         }
     }
 }

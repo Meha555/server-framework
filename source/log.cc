@@ -128,7 +128,7 @@ struct PercentSignFormatItem : public LogFormatter::FormatItemBase
 };
 
 // 日志模板格式控制符对应的日志项实现类
-static const std::unordered_map<char, LogFormatter::FormatItemBase::ptr> g_format_item_map{
+thread_local static const std::unordered_map<char, LogFormatter::FormatItemBase::ptr> g_format_item_map{ //REVIEW 为什么要加thread_local才能正确初始化？（试试test_fiber）
 #define __FN(ch, item) {ch, std::make_shared<item>()}
     __FN('p', LevelFormatItem),        //日志等级
     __FN('c', CategoryFormatItem),     //日志分类

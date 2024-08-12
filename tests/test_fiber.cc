@@ -13,36 +13,39 @@ static auto g_logger = GET_ROOT_LOGGER();
 
 // 正常执行的测试用例
 void test_fiber_normal() {
-  Fiber::Init();
-  static auto run_in_fiber = []() {
-    LOG(g_logger, INFO) << "run in fiber[" << Fiber::GetCurrentID()
-                        << "] begin, sleep 1s";
-    ::sleep(1);
-    LOG(g_logger, INFO) << "1' time yield cpu";
-    Fiber::GetCurrent()->yield();
-    LOG(g_logger, INFO) << "run in fiber[" << Fiber::GetCurrentID()
-                        << "] end, sleep 1s";
-    ::sleep(1);
-    LOG(g_logger, INFO) << "2' time yield cpu";
-    Fiber::GetCurrent()->yield();
-    LOG(g_logger, INFO) << "fiber[" << Fiber::GetCurrentID()
-                        << "] about to end";
-  };
-  // 主协程
-  LOG(g_logger, INFO) << "main[0] begin";
-  Fiber::sptr fiber(new Fiber(run_in_fiber, 0));
-  LOG(g_logger, INFO) << "1' time main[0] resume into fiber[" << fiber->getID()
-                      << "]";
-  fiber->resume();
-  LOG(g_logger, INFO) << "1' time fiber[" << fiber->getID()
-                      << "] yield outto main[0]";
-  LOG(g_logger, INFO) << "2' time main[0] resume into fiber[" << fiber->getID()
-                      << "]";
-  fiber->resume();
-  LOG(g_logger, INFO) << "2' time fiber[" << fiber->getID()
-                      << "] yield outto main[0]";
-  fiber->resume();
-  LOG(g_logger, INFO) << "main[0] end";
+  {
+    Fiber::Init();
+    static auto run_in_fiber = []() {
+      LOG(g_logger, INFO) << "run in fiber[" << Fiber::GetCurrentID()
+                          << "] begin, sleep 1s";
+      ::sleep(1);
+      LOG(g_logger, INFO) << "1' time yield cpu";
+      Fiber::Yield();
+      LOG(g_logger, INFO) << "run in fiber[" << Fiber::GetCurrentID()
+                          << "] end, sleep 1s";
+      ::sleep(1);
+      LOG(g_logger, INFO) << "2' time yield cpu";
+      Fiber::Yield();
+      LOG(g_logger, INFO) << "fiber[" << Fiber::GetCurrentID()
+                          << "] about to end";
+    };
+    // 主协程
+    LOG(g_logger, INFO) << "main[0] begin";
+    Fiber::sptr fiber(new Fiber(run_in_fiber, 0));
+    LOG(g_logger, INFO) << "1' time main[0] resume into fiber[" << fiber->id()
+                        << "]";
+    fiber->resume();
+    LOG(g_logger, INFO) << "1' time fiber[" << fiber->id()
+                        << "] yield outto main[0]";
+    LOG(g_logger, INFO) << "2' time main[0] resume into fiber[" << fiber->id()
+                        << "]";
+    fiber->resume();
+    LOG(g_logger, INFO) << "2' time fiber[" << fiber->id()
+                        << "] yield outto main[0]";
+    fiber->resume();
+    LOG(g_logger, INFO) << "main[0] end";
+  }
+  LOG(g_logger, INFO) << "主协程析构后";
 }
 
 //协程跑飞的测试用例

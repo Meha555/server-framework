@@ -57,16 +57,15 @@ Fiber::Fiber()
   SetCurrent(this);
   // 总协程数量增加
   ++s_fiber_count;
+  // 主协程号在各自线程中均为0，子协程号才是全局累加的
   LOG_DEBUG(g_logger, "创建主协程[0]");
 }
 
-Fiber::Fiber(FiberFunc callback, size_t stack_size)
+Fiber::Fiber(FiberFunc callback, bool scheduled, size_t stack_size)
     : m_id(++s_fiber_id), m_state(INIT), m_ctx(), m_stack(nullptr),
-      m_callback(std::move(callback)) {
+      m_callback(std::move(callback)), m_scheduled(scheduled) {
   // 注意这里创建的是子协程
-  // 如果传入的 stack_size 为 0，使用配置项 "fiber.stack_size" 设置的值
   m_stack_size = stack_size == 0 ? g_fiber_stack_size->getValue() : stack_size;
-  // 获取上下文对象的副本（构造函数最好不要抛异常）
   ASSERT(getcontext(&m_ctx) == 0);
   // 给上下文对象分配分配新的栈空间内存
   m_stack = StackAllocator::Alloc(m_stack_size);
@@ -88,6 +87,7 @@ Fiber::Fiber(Fiber &&rhs) noexcept {
   m_state = rhs.m_state;
   m_ctx = rhs.m_ctx;
   m_stack = rhs.m_stack;
+  m_scheduled = rhs.m_scheduled;
   // REVIEW 这里用swap比用move能处理callback中存在智能指针的问题？？
   m_callback.swap(rhs.m_callback);
   rhs.m_stack = nullptr;
@@ -106,6 +106,7 @@ Fiber &Fiber::operator=(Fiber &&rhs) noexcept {
     m_state = rhs.m_state;
     m_ctx = rhs.m_ctx;
     m_stack = rhs.m_stack;
+    m_scheduled = rhs.m_scheduled;
     // REVIEW 这里用swap比用move能处理callback中存在智能指针的问题？？
     m_callback.swap(rhs.m_callback);
     rhs.m_stack = nullptr;
@@ -121,7 +122,10 @@ Fiber &Fiber::operator=(Fiber &&rhs) noexcept {
 Fiber::~Fiber() {
   LOG_FMT_DEBUG(g_logger, "析构协程[%d]", m_id);
   if (m_stack) { // 存在栈，说明是子协程，释放申请的协程栈空间
-    ASSERT(m_state == INIT || m_state == TERM);
+    if (!(m_state == INIT || m_state == TERM)) {
+      LOG(g_logger, WARN) << "m_state=" << m_state << ", id=" <<m_id << " " << this;
+    }
+      ASSERT(m_state == INIT || m_state == TERM);
     StackAllocator::Dealloc(m_stack, m_stack_size);
   } else { // 否则是主协程
     ASSERT(m_state == EXEC);
@@ -146,38 +150,92 @@ void Fiber::reset(FiberFunc &&callback) noexcept {
   m_state = INIT;
 }
 
-// TODO
-// 这种原语性的操作，在抛异常后，应当具备状态回滚的能力，可以参考KWin的pending实现
 void Fiber::resume() noexcept {
-  // 当前执行的是主协程
-  ASSERT_FMT(t_master_fiber, "必须有主协程");
-  ASSERT_FMT(t_master_fiber.get() == t_current_fiber, "当前执行的必须是主协程，否则会导致线程跑飞");
-  ASSERT(m_state == INIT || m_state == READY);
-  t_master_fiber->m_state = READY;
-  SetCurrent(this);
-  m_state = EXEC;
-  if (swapcontext(&(t_master_fiber->m_ctx), &m_ctx)) {
-    ASSERT_FMT(false, "swapcontext() error");
+  // // 当前执行的是主协程
+  // ASSERT_FMT(t_master_fiber, "必须有主协程");
+  // ASSERT_FMT(t_master_fiber.get() == t_current_fiber, "当前执行的必须是主协程，否则会导致线程跑飞");
+  // if (m_state == EXEC) {
+  //   LOG_FMT_DEBUG(g_logger, "该协程%d正在执行，不要重复换入", m_id);
+  // }
+  // ASSERT(m_state == INIT || m_state == READY);
+  // t_master_fiber->m_state = READY;
+  // SetCurrent(this);
+  // m_state = EXEC;
+  // // 如果协程参与调度器调度，那么应该和调度协程进⾏swap，⽽不是当前线程主协程
+  // if (m_scheduled) {
+  //   if (swapcontext(&(Scheduler::GetSchedulerFiber()->m_ctx), &m_ctx)) {
+  //     ASSERT_FMT(false, "resume swapcontext() error");
+  //   }
+  // } else {
+  //   if (swapcontext(&(t_master_fiber->m_ctx), &m_ctx)) {
+  //     ASSERT_FMT(false, "resume swapcontext() error");
+  //   }
+  // }
+  if (m_scheduled) {
+    swapIn(Scheduler::GetSchedulerFiber());
+  } else {
+    swapIn(t_master_fiber.get());
   }
 }
 
 void Fiber::yield() noexcept {
-  // 当前执行的是子协程
-  ASSERT_FMT(t_master_fiber, "必须有主协程");
-  ASSERT_FMT(t_current_fiber != t_master_fiber.get(), "只允许子协程yield，否则会导致线程没有执行流");
+  // // 当前执行的是子协程
+  // ASSERT_FMT(t_master_fiber, "必须有主协程");
+  // ASSERT_FMT(t_current_fiber != t_master_fiber.get(),
+  //            "只允许子协程yield，否则会导致线程没有执行流");
+  // // 协程运行完之后会自动yield一次，用于回到主协程，此时状态已为TERM状态
+  // ASSERT(m_state == EXEC || m_state == TERM);
+  // if (m_state != TERM) {
+  //   m_state = READY;
+  // }
+  // SetCurrent(t_master_fiber.get());
+  // t_master_fiber->m_state = EXEC;
+  // // 如果协程参与调度器调度，那么应该和调度协程进⾏swap，⽽不是当前线程主协程
+  // if (m_scheduled) {
+  //   if (swapcontext(&m_ctx, &(Scheduler::GetSchedulerFiber()->m_ctx))) {
+  //     ASSERT_FMT(false, "yield swapcontext() error");
+  //   }
+  // } else {
+  //   if (swapcontext(&m_ctx, &(t_master_fiber->m_ctx))) {
+  //     ASSERT_FMT(false, "yield swapcontext() error");
+  //   }
+  // }
+  if(m_scheduled) {
+    swapOut(Scheduler::GetSchedulerFiber());
+  } else {
+    swapOut(t_master_fiber.get());
+  }
+}
+
+void Fiber::swapIn(Fiber* to) noexcept {
+  ASSERT(to);
+  if (m_state == EXEC) {
+    LOG_FMT_DEBUG(g_logger, "该协程%d正在执行，不要重复换入", m_id);
+  }
+  ASSERT(m_state == INIT || m_state == READY);
+  to->m_state = READY;
+  SetCurrent(this);
+  m_state = EXEC;
+  LOG(g_logger, WARN) << "IN m_state = EXEC;" << m_id;
+  if (swapcontext(&(to->m_ctx), &m_ctx)) {
+    ASSERT_FMT(false, "resume swapcontext() error");
+  }
+}
+
+void Fiber::swapOut(Fiber* off) noexcept {
+  ASSERT(off);
   // 协程运行完之后会自动yield一次，用于回到主协程，此时状态已为TERM状态
   ASSERT(m_state == EXEC || m_state == TERM);
   if (m_state != TERM) {
     m_state = READY;
   }
-  SetCurrent(t_master_fiber.get());
-  t_master_fiber->m_state = EXEC;
-  if (swapcontext(&m_ctx, &(t_master_fiber->m_ctx))) {
-    ASSERT_FMT(false, "swapcontext() error");
+  SetCurrent(off);
+  off->m_state = EXEC;
+  LOG(g_logger, WARN) << "OUT m_state = EXEC;" << off->m_id << " " << this;
+  if (swapcontext(&m_ctx, &(off->m_ctx))) {
+    ASSERT_FMT(false, "yield swapcontext() error");
   }
 }
-
-bool Fiber::isFinished() const noexcept { return m_state == TERM; }
 
 void Fiber::Init() {
   if (t_master_fiber == nullptr) {
@@ -187,6 +245,8 @@ void Fiber::Init() {
   }
 }
 
+void Fiber::SetCurrent(Fiber *fiber) { t_current_fiber = fiber; }
+
 Fiber::sptr Fiber::GetCurrent() {
   //当前线程还没有创建协程
   if (t_current_fiber == nullptr) {
@@ -195,12 +255,10 @@ Fiber::sptr Fiber::GetCurrent() {
   return t_current_fiber->shared_from_this();
 }
 
-void Fiber::SetCurrent(Fiber *fiber) { t_current_fiber = fiber; }
-
 uint32_t Fiber::TotalFibers() { return s_fiber_count; }
 
 uint64_t Fiber::GetCurrentID() {
-  if (t_current_fiber != nullptr) {
+  if (t_current_fiber) {
     return t_current_fiber->m_id;
   }
   return 0;
@@ -211,7 +269,12 @@ Fiber::State Fiber::GetCurrentState() {
   return t_current_fiber->m_state;
 }
 
-// TODO 这个函数要看一下
+uint32_t Fiber::Yield() {
+  uint32_t fid = t_current_fiber->m_id;
+  t_current_fiber->yield();
+  return fid;
+}
+
 void Fiber::Run() {
   auto current_fiber = GetCurrent(); // 这里会导致引用计数+1
   current_fiber->m_callback();       // 调用协程回调
@@ -221,15 +284,13 @@ void Fiber::Run() {
   // 执行结束后，切回主协程
   Fiber *current_fiber_ptr = current_fiber.get();
   current_fiber.reset(); // 此时current_fiber的引用计数应该是2，手动reset来减1
-//   if (Scheduler::GetCurrent() &&
-//       Scheduler::GetCurrent()->m_caller_thread_id == GetThreadID() &&
-//       Scheduler::GetCurrent()->m_caller_fiber.get() !=
-//           current_fiber_ptr) { // 调度器实例化时 as_master 为 true,
-//                                // 并且当前协程所在的线程就是 root thread
-//     current_fiber_ptr->yield();
-//   } else {
+  LOG_FMT_WARN(g_logger, "当前是 %ld 协程\n", current_fiber_ptr->id());
+  LOG(g_logger, DEBUG) << "curr: " << current_fiber_ptr
+                       << "\nmaster: " << t_master_fiber.get()
+                       << "\nscheduler: " << Scheduler::GetSchedulerFiber();
+  if(current_fiber_ptr != t_master_fiber.get()) {
     current_fiber_ptr->yield(); // 自动yield返回主协程
-//   }
+  }
 }
 
 } // namespace meha

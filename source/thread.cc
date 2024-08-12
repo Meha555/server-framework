@@ -100,7 +100,6 @@ Thread::Thread(ThreadFunc callback, const std::string_view &name)
       m_started(true),
       m_joined(false)
 {
-    LOG_FMT_DEBUG(GET_ROOT_LOGGER(), "创建线程%s[%d]", name.data(), GetThreadID());
     SetCurrentName(name);
     ThreadClosure *closure = new ThreadClosure(name, callback, this);
     int ret = pthread_create(&m_thread, nullptr, &Thread::Run, closure);
@@ -110,6 +109,7 @@ Thread::Thread(ThreadFunc callback, const std::string_view &name)
         delete closure;
         ASSERT_FMT(ret == 0, "创建线程 %s 失败：%s", name.data(), strerror(errno));
     } else {  // 创建线程成功
+        LOG_FMT_DEBUG(GET_ROOT_LOGGER(), "创建线程%s[PID:%d]", name.data(), GetThreadID());
               // 注意这里是在主线程中，先让主线程停住，因为要为子线程绑定ID、设置名字之类，且还没那么快开跑任务worker，所以需要同步一下
               // 我采用的是thread_local变量来存储的，因此需要在子线程来设置
         m_sem_sync.wait();

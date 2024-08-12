@@ -20,6 +20,6 @@ include(CTest) # 引入CTest
 include_directories(include) # 全局头文件搜索目录
 
 add_subdirectory(source)
-if(BUILD_TESTING)
+# if(BUILD_TESTING)
 	add_subdirectory(tests)
-endif()
+# endif()

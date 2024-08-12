@@ -101,7 +101,7 @@ AccessModifierOffset: -4
 
 #连续宏定义时，对齐所有定义值
 AlignConsecutiveMacros: AcrossEmptyLinesAndComments
-#AlignOperands Align将对齐分割到多行上的单个表达式的操作数
+#将对齐分割到多行上的单个表达式的操作数
 AlignOperands: Align
 #对齐连续的尾随的注释
 AlignTrailingComments: true
@@ -158,7 +158,7 @@ PointerAlignment: Right
 # 三元运算符将被放置在换行后
 BreakBeforeTernaryOperators: true
 #每行字符的限制，0表示没有限制
-ColumnLimit: 120
+ColumnLimit: 150
 #缩进空格宽度：4
 IndentWidth: 4
 #保留在赋值操作符之前的空格

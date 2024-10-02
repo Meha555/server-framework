@@ -1,5 +1,5 @@
 #include "exception.h"
-#include "util.h"
+#include "utils.h"
 #include <fmt/format.h>
 #include <stdexcept>
 
@@ -7,7 +7,7 @@ namespace meha {
 
 Exception::Exception(std::string what)
     : std::exception(), m_message(std::move(what)),
-      m_stack(BacktraceToString(200)) {}
+      m_stack(utils::BacktraceToString(200)) {}
 
 const char *Exception::what() const noexcept { return m_message.c_str(); }
 

@@ -1,14 +1,13 @@
-#include "util.h"
+#include "utils.h"
 #include "exception.h"
 #include "fiber.h"
 #include "log.h"
 #include <chrono>
 #include <cxxabi.h>
 #include <execinfo.h>
-#include <iostream>
 #include <sys/time.h>
 
-namespace meha {
+namespace meha::utils {
 
 // 获得top命令中展示的Linux线程ID
 uint32_t GetThreadID()
@@ -111,4 +110,4 @@ std::chrono::nanoseconds GetCurrentNS()
     return std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch());
 }
 
-}  // namespace meha
+} // namespace meha::utils

@@ -1,6 +1,6 @@
 #include "log.h"
 #include "scheduler.h"
-#include "util.h"
+#include "utils.h"
 #include <iostream>
 
 #include <gtest/gtest.h>
@@ -12,7 +12,7 @@ using namespace meha;
 void fn1()
 {
     for (int i = 0; i < 3; i++) {
-      std::cout << "啊啊啊啊id= " << GetFiberID() << std::endl;
+      std::cout << "啊啊啊啊id= " << utils::GetFiberID() << std::endl;
       Fiber::Yield();
     }
 }
@@ -20,7 +20,7 @@ void fn1()
 void fn2()
 {
     for (int i = 0; i < 3; i++) {
-        std::cout << "哦哦哦哦id= " << GetFiberID() << std::endl;
+        std::cout << "哦哦哦哦id= " << utils::GetFiberID() << std::endl;
         Fiber::Yield();
     }
 }

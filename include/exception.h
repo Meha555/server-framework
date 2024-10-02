@@ -1,5 +1,3 @@
-// #ifndef SERVER_FRAMEWORK_EXCEPTION_H
-// #define SERVER_FRAMEWORK_EXCEPTION_H
 #pragma once
 
 #include <exception>
@@ -37,5 +35,3 @@ EXCEPTION_WRAPPER(SystemError, system_error)
 EXCEPTION_WRAPPER(RuntimeError, runtime_error)
 
 } // namespace meha
-
-// #endif

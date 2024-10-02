@@ -1,11 +1,10 @@
-// #ifndef SERVER_FRAMEWORK_TIMER_H
-// #define SERVER_FRAMEWORK_TIMER_H
 #pragma once
 
-#include "thread.h"
 #include <memory>
 #include <set>
-#include <vector>
+#include <functional>
+
+#include "mutex.hpp"
 
 namespace meha
 {
@@ -142,5 +141,3 @@ private:
 };
 
 } // end namespace meha
-
-// #endif

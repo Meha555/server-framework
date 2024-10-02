@@ -1,11 +1,9 @@
-// #ifndef SERVER_FRAMEWORK_SCHEDULER_H
-// #define SERVER_FRAMEWORK_SCHEDULER_H
 #pragma once
 
 #include "fiber.h"
 #include "mutex.hpp"
 #include "thread.h"
-#include "util.h"
+#include "utils.h"
 #include <atomic>
 #include <boost/type_traits.hpp>
 #include <ctime>
@@ -41,11 +39,11 @@ private:
     pid_t thread_id{-1}; // 可选的: 指定执行该任务的线程的id
 
     explicit Task() : handle(nullptr), thread_id(-1) {}
-    Task(const Fiber::sptr &f, pid_t tid)
+    Task(Fiber::sptr f, pid_t tid)
         : handle(std::move(f)), thread_id(tid) {
       ASSERT_FMT(f->isScheduled(), "协程必须参与调度器调度");
     }
-    Task(const Fiber::FiberFunc &cb, pid_t tid)
+    Task(Fiber::FiberFunc&& cb, pid_t tid)
         : handle(std::make_shared<Fiber>(cb, true)), thread_id(tid) {}
 
     // 清除任务
@@ -112,9 +110,9 @@ public:
   void schedule(Executable &&exec, pid_t thread_id = -1, bool instant = false) {
     bool need_tickle = false;
     {
-      // static_assert(
-      //     Task::is_vaild_task<Executable>::value,
-      //     "任务类型必须是std::shared_ptr<meha::Fiber>或std::function<void()>");
+      static_assert(
+          Task::is_vaild_task<Executable>::value,
+          "任务类型必须是std::shared_ptr<meha::Fiber>或std::function<void()>"); // FIXME 怎么支持lambda？
       WriteScopedLock lock(&m_mutex);
       need_tickle = addTask(std::forward<Executable>(exec), thread_id);
     }
@@ -135,7 +133,7 @@ public:
     {
       WriteScopedLock lock(&m_mutex);
       while (begin != end) {
-        need_tickle = addTask(*begin) || need_tickle;
+        need_tickle = addTask(std::move(*begin)) || need_tickle;
         ++begin;
       }
     }
@@ -214,5 +212,3 @@ private:
 };
 
 } // namespace meha
-
-// #endif  // SERVER_FRAMEWORK_SCHEDULER_H

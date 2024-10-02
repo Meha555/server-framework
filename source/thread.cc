@@ -2,7 +2,7 @@
 #include "log.h"
 #include "mutex.hpp"
 #include "sem.h"
-#include "util.h"
+#include "utils.h"
 #include <exception>
 
 // FIXME - 这些底层库的失败和异常的处理，应该怎么做？是不是可以参考一下Java
@@ -109,7 +109,7 @@ Thread::Thread(ThreadFunc callback, const std::string_view &name)
         delete closure;
         ASSERT_FMT(ret == 0, "创建线程 %s 失败：%s", name.data(), strerror(errno));
     } else {  // 创建线程成功
-        LOG_FMT_DEBUG(GET_ROOT_LOGGER(), "创建线程%s[PID:%d]", name.data(), GetThreadID());
+        LOG_FMT_DEBUG(GET_ROOT_LOGGER(), "创建线程%s[PID:%d]", name.data(), utils::GetThreadID());
               // 注意这里是在主线程中，先让主线程停住，因为要为子线程绑定ID、设置名字之类，且还没那么快开跑任务worker，所以需要同步一下
               // 我采用的是thread_local变量来存储的，因此需要在子线程来设置
         m_sem_sync.wait();
@@ -118,7 +118,7 @@ Thread::Thread(ThreadFunc callback, const std::string_view &name)
 
 Thread::~Thread()
 {
-    LOG_FMT_DEBUG(GET_ROOT_LOGGER(), "分离线程%s[%d]", GetCurrentName().data(), GetThreadID());
+    LOG_FMT_DEBUG(GET_ROOT_LOGGER(), "分离线程%s[%d]", GetCurrentName().data(), utils::GetThreadID());
     // 而我们不希望阻塞主线程，因此这里用detach
     // 如果线程有效且不为join，将线程与主线程分离
     if (m_started && !m_joined) {
@@ -162,7 +162,7 @@ void *Thread::Run(void *args)
 void Thread::ThreadClosure::runInThread()
 {
     t_this_thread = static_cast<Thread *>(user_data);
-    t_this_tid = GetThreadID();
+    t_this_tid = utils::GetThreadID();
     t_this_tname = name;
     pthread_setname_np(t_this_thread->m_thread, t_this_tname.substr(0, 15).data());
 

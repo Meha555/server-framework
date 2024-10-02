@@ -1,10 +1,7 @@
 #pragma once
 
 #include "log.h"
-#include "noncopyable.h"
 #include <cassert>
-#include <cinttypes>
-#include <memory>
 #include <pthread.h>
 #include <string>
 #include <sys/syscall.h>
@@ -22,7 +19,7 @@
                           "Assertion: " #cond "\nSysErr: %s (%u)\nBacktrace:\n%s",                                     \
                           strerror(errno),                                                                             \
                           errno,                                                                                       \
-                          meha::BacktraceToString().c_str());                                                          \
+                          meha::utils::BacktraceToString().c_str());                                                          \
             assert(cond);                                                                                              \
         }                                                                                                              \
     } while (0)
@@ -38,13 +35,13 @@
                           ##args,                                                                                      \
                           strerror(errno),                                                                             \
                           errno,                                                                                       \
-                          meha::BacktraceToString().c_str());                                                          \
+                          meha::utils::BacktraceToString().c_str());                                                          \
             assert(cond);                                                                                              \
         }                                                                                                              \
     } while (0)
 #endif
 
-namespace meha {
+namespace meha::utils {
 
 // 获取linux下线程的唯一id
 uint32_t GetThreadID();
@@ -73,4 +70,4 @@ std::chrono::microseconds GetCurrentUS();
 
 std::chrono::nanoseconds GetCurrentNS();
 
-}  // namespace meha
+} // namespace meha::utils

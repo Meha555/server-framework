@@ -3,7 +3,7 @@
 #include "fiber.h"
 #include "hook.h"
 #include "log.h"
-#include "util.h"
+#include "utils.h"
 #include <fmt/format.h>
 
 namespace meha {
@@ -121,7 +121,7 @@ void Scheduler::run() {
       WriteScopedLock lock(&m_mutex);
       for (auto iter = m_task_list.begin(); iter != m_task_list.end(); ++iter) {
         // 如果任务指定了要在特定线程执行，但当前线程不是指定线程，通知其他线程处理
-        if ((*iter)->thread_id != -1 && (*iter)->thread_id != GetThreadID()) {
+        if ((*iter)->thread_id != -1 && (*iter)->thread_id != utils::GetThreadID()) {
           need_tickle = true;
           continue;
         }
@@ -154,7 +154,7 @@ void Scheduler::run() {
       case Fiber::EXEC:
         throw RuntimeError(fmt::format("协程[{}]执行状态异常：当前状态 {}",
                                        task.handle->id(),
-                                       task.handle->state()));
+                                       static_cast<int>(task.handle->state())));
         break;
       case Fiber::TERM:
         LOG_FMT_DEBUG(root_logger, "协程[%ld]运行结束", task.handle->id());
@@ -178,7 +178,7 @@ void Scheduler::run() {
       case Fiber::EXEC:
         throw RuntimeError(fmt::format("idle协程 {} 执行状态异常：当前状态 {}",
                                        task.handle->id(),
-                                       task.handle->state()));
+                                       static_cast<int>(task.handle->state())));
         break;
       }
     }

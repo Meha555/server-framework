@@ -1,5 +1,3 @@
-// #ifndef SERVER_FRAMEWORK_CONFIG_H
-// #define SERVER_FRAMEWORK_CONFIG_H
 #pragma once
 
 #include "log.h"
@@ -20,10 +18,11 @@
 #include <typeinfo>
 #include <vector>
 #include <yaml-cpp/node/node.h>
+#include <yaml-cpp/node/parse.h>
 #include <yaml-cpp/node/type.h>
 #include <yaml-cpp/yaml.h>
 
-namespace meha {
+namespace meha::utils {
 
 /*
 针对YAML数据类型的序列化为string和反序列化为具体数据类型的工具
@@ -41,7 +40,7 @@ YAML有4种数据类型：scalar、sequence、mapping、null。
  * @details 因为 boost::lexical_cast 是使用 std::stringstream 实现的字符串与目标类型的转换，
  * 所以仅支持实现了 ostream::operator<< 与 istream::operator>> 的类型,
  * 可以说默认情况下仅支持 std::string 与各类 Number 类型的双向转换。
- * 而我们需要转换自定义的类型，可以选择实现对应类型的流操作符，或者将该转换函数封装一个仿函数模板并进行偏特化。
+ * 而我们需要转换自定义的类型，可以选择实现对应类型的流操作符，或者将该转换函数封装一个仿函数模板并进行偏特化，并重写提供自己的operator()，内含流运算符逻辑。
  * 这里选择后者，因为基于类模板的特化方法可以适用于嵌套的组合类型，而重载运算符只能适用于单一类型
  */
 template <typename Source, typename Target>
@@ -284,6 +283,10 @@ struct lexical_cast<std::set<T>, std::string>
 template <typename T>
 using from_set_to_string_cast = lexical_cast<std::set<T>, std::string>;
 
+} // namespace meha::utils
+
+namespace meha {
+
 /**
  * @brief 配置项虚基类，本身不含配置项类型和值，这些由派生类实现
  * @details 定义配置项共有的成员和方法
@@ -315,7 +318,7 @@ public:
         WriteScopedLock lock(&m_mutex);
         m_description = description;
     }
-    // 这里返回引用，那就得保证外部不修改这个内部对象，所以需要常引用（由于ConfigItemBase是服务器启动时就创建好，因此这里不存在悬垂引用的问题。不过最好还是别返回局部对象的引用）
+    // REVIEW 这里返回引用，那就得保证外部不修改这个内部对象，所以需要常引用（由于ConfigItemBase是服务器启动时就创建好，因此这里不存在悬垂引用的问题。不过最好还是别返回局部对象的引用）
     const std::string &getName() const { return m_name; }
     const std::string &getDesccription() const { return m_description; }
 
@@ -345,12 +348,12 @@ inline std::ostream &operator<<(std::ostream &out, const ConfigItemBase &cvb)
  * @param FromStringFN    {functor<T(const std::string&)>} 将 std::string 转换为配置项的值的仿函数
  * */
 template <typename Item,
-          typename ToStringFN = from_type_to_string_cast<Item>,
-          typename FromStringFN = from_string_to_type_cast<Item>>
+          typename ToStringFN = utils::from_type_to_string_cast<Item>,
+          typename FromStringFN = utils::from_string_to_type_cast<Item>>
 class ConfigItem : public ConfigItemBase {
 public:
     using ptr = std::shared_ptr<ConfigItem>;
-    using onChangeCallback = std::function<void(const Item &old_value, const Item &new_value)>;
+    using onChangedCallback = std::function<void(const Item &old_value, const Item &new_value)>;
 
     ConfigItem(const std::string &name, const Item &value, const std::string &description)
         : ConfigItemBase(name, description), m_value(value)
@@ -407,7 +410,7 @@ public:
     }
 
     // thread-safe 增加配置项变更事件处理器，返回处理器的唯一编号
-    uint64_t addListener(onChangeCallback cb)
+    uint64_t addListener(onChangedCallback cb)
     {
         static uint64_t s_cb_id = 0;  // 编号是始终递增的
         WriteScopedLock lock(&m_mutex);
@@ -422,7 +425,7 @@ public:
     }
 
     // thread-safe 获取配置项变更事件处理器
-    onChangeCallback getListener(uint64_t key) const
+    onChangedCallback getListener(uint64_t key) const
     {
         ReadScopedLock lock(&m_mutex);
         auto iter = m_callback_map.find(key);
@@ -447,13 +450,13 @@ public:
 
 private:
     Item m_value;                                         // 配置项的值
-    std::map<uint64_t, onChangeCallback> m_callback_map;  // 配置项变更回调函数数组<回调函数ID, 回调函数指针>
+    std::map<uint64_t, onChangedCallback> m_callback_map;  // 配置项变更回调函数数组<回调函数ID, 回调函数指针>
 };
 
 /**
  * @brief 配置文件管理类
  * @details 解析YAML配置文件，并管理所有的ConfigItem对象
- * @note 这个类没有创建对象来用，其所有方法都是static，即保证全局仅有一个方法实例
+ * @note 这个类没有创建对象来用，其所有方法都是static
  */
 class Config {
 public:
@@ -499,9 +502,6 @@ public:
         auto tmp = Lookup<T>(name);
         // 已存在同名配置项
         if (tmp) {
-            // LOG_FMT_INFO(GET_ROOT_LOGGER(),
-            //              "Config::Lookup name=%s 已存在",
-            //              name.c_str());
             return tmp;
         }
         // 判断名称是否合法
@@ -521,7 +521,7 @@ public:
     }
 
     // thread-safe 从 YAML::Node 中载入配置
-    static void LoadFromYAML(const YAML::Node &root)
+    static void LoadFromNode(const YAML::Node &root)
     {
         std::vector<std::pair<std::string, YAML::Node>> node_list;
         TraversalNode(root, "", node_list);  // 把root node中的所有node都扁平化到列表node_list中
@@ -534,7 +534,7 @@ public:
             // 根据配置项名称在内存中的配置中查找对应的配置项
             auto val = Lookup(key);
             // 只处理注册过的配置项，没有注册过的配置项直接忽略
-            if (val) {
+            if (val) { // REVIEW 这里到底是采用异常还是空指针来进行错误处理更好？
                 std::stringstream ss;
                 ss << node;
                 val->fromString(ss.str());  // 完成setValue的过程
@@ -547,13 +547,19 @@ public:
         }
     }
 
+    // thread-safe 从 YAML 文件中载入配置
+    static void LoadFromFile(const std::string& filename)
+    {
+        LoadFromNode(YAML::LoadFile(std::move(filename)));
+    }
+
 private:
     /**
      * @brief 遍历指定的 YAML::Node 对象，并将遍历结果扁平化存到列表里返回（扁平化为list是为了方便查询）
      * @details YAML中保存的内容是树形结构的，这里统一将其扁平压缩为一条<key,val>记录
      * @param node 本次所处理的YAML::Node对象
      * @param name node对应的字符串名称
-     * @param[in,out] output 保存扁平化YAML设置的vector
+     * @param[out] output 保存扁平化YAML设置的vector
      */
     static void TraversalNode(const YAML::Node &node,
                               const std::string &name,
@@ -601,5 +607,3 @@ private:
 };
 
 }  // namespace meha
-
-// #endif

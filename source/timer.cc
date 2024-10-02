@@ -1,4 +1,5 @@
 #include "timer.h"
+#include "utils.h"
 
 namespace meha
 {
@@ -25,7 +26,7 @@ Timer::Timer(uint64_t elapse, std::function<void()> cb, bool cyclic, TimerManage
       m_callback(cb),
       m_manager(manager)
 {
-    m_nexttime_absolute = GetCurrentMS().count() + m_elapsetime_relative;
+    m_nexttime_absolute = utils::GetCurrentMS().count() + m_elapsetime_relative;
 }
 
 Timer::Timer(uint64_t next) : m_nexttime_absolute(next)
@@ -66,7 +67,7 @@ bool Timer::reset(uint64_t elapse, bool from_now)
     // 重新计时
     if (from_now)
     {
-        start = GetCurrentMS().count();;
+        start = utils::GetCurrentMS().count();;
     }
     else
     {
@@ -92,14 +93,14 @@ bool Timer::restart()
         return false;
     }
     m_manager->m_timers.erase(it);
-    m_nexttime_absolute = GetCurrentMS().count(); + m_elapsetime_relative;
+    m_nexttime_absolute = utils::GetCurrentMS().count(); + m_elapsetime_relative;
     m_manager->m_timers.insert(shared_from_this());
     return true;
 }
 
 TimerManager::TimerManager()
 {
-    m_previous_time = GetCurrentMS().count();;
+    m_previous_time = utils::GetCurrentMS().count();;
 }
 
 Timer::ptr TimerManager::addTimer(
@@ -147,7 +148,7 @@ uint64_t TimerManager::getNextTimer() const
         return ~0ull;
     }
     const Timer::ptr& next = *m_timers.begin();
-    uint64_t now_ms = GetCurrentMS().count();
+    uint64_t now_ms = utils::GetCurrentMS().count();
     if (now_ms >= next->m_nexttime_absolute)
     {
         // 等待超时
@@ -162,7 +163,7 @@ uint64_t TimerManager::getNextTimer() const
 
 void TimerManager::listExpiredCallback(std::vector<std::function<void()>>& fns)
 {
-    uint64_t now_ms = GetCurrentMS().count();
+    uint64_t now_ms = utils::GetCurrentMS().count();
     std::vector<Timer::ptr> expired;
     {
         ReadScopedLock lock(&m_lock);

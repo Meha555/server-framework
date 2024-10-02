@@ -1,12 +1,9 @@
-// #ifndef SERVER_FRAMEWORK_THREAD_H
-// #define SERVER_FRAMEWORK_THREAD_H
 #pragma once
 
 #include <functional>
 #include <memory>
 #include <string_view>
 
-#include "mutex.hpp"
 #include "sem.h"
 
 namespace meha {
@@ -68,5 +65,3 @@ private:
     bool m_joined;
 };
 }  // namespace meha
-
-// #endif

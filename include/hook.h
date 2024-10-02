@@ -1,5 +1,3 @@
-// #ifndef SERVER_FRAMEWORK_HOOK_H
-// #define SERVER_FRAMEWORK_HOOK_H
 #pragma once
 
 #include <fcntl.h>
@@ -100,5 +98,3 @@ extern "C"
     typedef int (*ioctl_func)(int fd, unsigned long request, ...);
     extern ioctl_func ioctl_f;
 }
-
-// #endif

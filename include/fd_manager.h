@@ -1,5 +1,3 @@
-// #ifndef SERVER_FRAMEWORK_FD_MANAGER_H
-// #define SERVER_FRAMEWORK_FD_MANAGER_H
 #pragma once
 
 #include "io_manager.h"
@@ -80,5 +78,3 @@ private:
 using FileDescriptorManager = SingletonPtr<FileDescriptorManagerImpl>;
 
 } // namespace meha
-
-// #endif // SERVER_FRAMEWORK_FD_MANAGER

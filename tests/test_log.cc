@@ -10,7 +10,6 @@
 #include "config.hpp"
 #include "log.h"
 #include "thread.h"
-#include "util.h"
 
 #define TEST_CASE LogTest
 
@@ -70,8 +69,7 @@ TEST(TEST_CASE, LoggerConfig)
     auto config = meha::Config::Lookup("logs");
     LOG_DEBUG(GET_ROOT_LOGGER(), config->toString().c_str());
     try {
-        auto yaml_node = YAML::LoadFile("config.yml");
-        meha::Config::LoadFromYAML(yaml_node);
+        meha::Config::LoadFromFile("config.yml");
         LOG_DEBUG(GET_ROOT_LOGGER(), config->toString().c_str());
     } catch (const YAML::BadFile &e) {
         std::cerr << "打开文件失败：" << e.what() << std::endl;
@@ -83,16 +81,13 @@ TEST(TEST_CASE, CreateLoggerByYAMLFile)
     std::cout << ">>>>>> 测试配置功能 <<<<<<" << std::endl;
     try {
         auto yaml_node = YAML::LoadFile("config.yml");
-        meha::Config::LoadFromYAML(yaml_node);
+        meha::Config::LoadFromNode(yaml_node);
         auto root_logger = GET_ROOT_LOGGER();
 
         LOG_DEBUG(root_logger, "输出一条 debug 日志到全局日志器");
         LOG_INFO(root_logger, "输出一条 info 日志到全局日志器");
         LOG_ERROR(root_logger, "输出一条 error 日志到全局日志器");
 
-        // auto event = MAKE_LOG_EVENT(meha::LogLevel::DEBUG, "输出一条 debug 日志");
-        // global_logger->log(event);
-        // root_logger->log(event);
     } catch (const YAML::BadFile &e) {
         std::cerr << "打开文件失败：" << e.what() << std::endl;
     } catch (const std::exception &e) {

@@ -1,13 +1,9 @@
-// #ifndef SERVER_FRAMEWORK_FIBER_H
-// #define SERVER_FRAMEWORK_FIBER_H
 #pragma once
 
-#include <atomic>
+#include "noncopyable.h"
 #include <functional>
 #include <memory>
 #include <ucontext.h>
-
-#include "config.hpp"
 
 namespace meha {
 
@@ -113,5 +109,3 @@ private:
 };
 
 } // namespace meha
-
-// #endif

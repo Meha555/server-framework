@@ -1,5 +1,3 @@
-// #ifndef SERVER_FRAMEWORK_MUTEX_H
-// #define SERVER_FRAMEWORK_MUTEX_H
 #pragma once
 
 #include <atomic>
@@ -197,5 +195,3 @@ using WriteScopedLock = WriteScopedLockImpl<RWLock>;
 using SpinScopedLock = ScopedLockImpl<SpinLock>;
 
 }  // namespace meha
-
-// #endif

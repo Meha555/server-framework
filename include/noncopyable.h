@@ -1,5 +1,4 @@
-#ifndef SERVER_FARMEWORK_NONCOPYABLE_H
-#define SERVER_FARMEWORK_NONCOPYABLE_H
+#pragma once
 
 namespace meha {
 
@@ -32,5 +31,3 @@ protected: // 设置为protected是说明这个类仅用于做虚基类，不能
     DISABLE_MOVE(Class)
 
 }  // namespace meha
-
-#endif

@@ -1,7 +1,5 @@
 #include "config.hpp"
 #include "log.h"
-#include "yaml-cpp/yaml.h"
-#include <cstdint>
 #include <gtest/gtest.h>
 #include <iostream>
 #include <list>
@@ -45,7 +43,7 @@ ostream &operator<<(ostream &out, const Goods &g)
     return out;
 }
 
-namespace meha {
+namespace meha::utils {
 
 // meha::lexical_cast 针对自定义类型的全特化
 template <>
@@ -98,13 +96,19 @@ TEST(TEST_CASE, ConfigItemToString)
 // 测试通过解析 yaml 文件更新配置项
 TEST(TEST_CASE, loadConfig)
 {
-    YAML::Node config;
+    YAML::Node cfg;
+    // 测试读取配置
     try {
-        config = YAML::LoadFile("tests/test_config.yml");
+        cfg = YAML::LoadFile("tests/test_config.yml");
     } catch (const exception &e) {
         LOG_FMT_ERROR(GET_ROOT_LOGGER(), "文件加载失败：%s", e.what());
     }
-    meha::Config::LoadFromYAML(config);
+    // 测试设置配置
+    try {
+        meha::Config::LoadFromNode(cfg);
+    } catch (const exception& e) {
+        LOG_FMT_ERROR(GET_ROOT_LOGGER(), "配置设置失败：%s", e.what());
+    }
 }
 
 // 测试获取并使用配置的值
@@ -150,7 +154,7 @@ int main(int argc, char *argv[])
     testing::InitGoogleTest(&argc, argv);
     // 注册一个监听器
     config_system_port->addListener([](const int &old_value, const int &new_value) {
-        LOG_FMT_DEBUG(GET_ROOT_LOGGER(), "配置项 system.port 的值被修改，从 %d 到 %d", old_value, new_value);
+        LOG_FMT_DEBUG(GET_ROOT_LOGGER(), "配置项 %s 的值被修改，从 %d 到 %d", config_system_port->getName().c_str(), old_value, new_value);
     });
     YAML::Node node;
     auto str = node["node"] ? node["node"].as<string>() : "";

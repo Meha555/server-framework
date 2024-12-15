@@ -1,47 +1,49 @@
 #pragma once
 
+#include "exception.h"
 #include "log.h"
 #include <cassert>
+#include <chrono>
 #include <pthread.h>
 #include <string>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <chrono>
 #include <vector>
 
 // 普通断言
 #ifndef ASSERT
-#define ASSERT(cond)                                                                                                   \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            LOG_FMT_FATAL(GET_ROOT_LOGGER(),                                                                           \
-                          "Assertion: " #cond "\nSysErr: %s (%u)\nBacktrace:\n%s",                                     \
-                          strerror(errno),                                                                             \
-                          errno,                                                                                       \
-                          meha::utils::BacktraceToString().c_str());                                                          \
-            assert(cond);                                                                                              \
-        }                                                                                                              \
+#define ASSERT(cond)                                                               \
+    do {                                                                           \
+        if (!(cond)) {                                                             \
+            LOG_FMT_FATAL(GET_ROOT_LOGGER(),                                       \
+                          "Assertion: " #cond "\nSysErr: %s (%u)\nBacktrace:\n%s", \
+                          ::strerror(errno),                                       \
+                          errno,                                                   \
+                          meha::utils::BacktraceToString().c_str());               \
+            assert(cond);                                                          \
+        }                                                                          \
     } while (0)
 #endif
 
 // 额外信息的断言
 #ifndef ASSERT_FMT
-#define ASSERT_FMT(cond, fmt, args...)                                                                                 \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            LOG_FMT_FATAL(GET_ROOT_LOGGER(),                                                                           \
-                          "Assertion: " #cond ", " fmt "\nSysErr: %s (%u)\nBacktrace:\n%s",                            \
-                          ##args,                                                                                      \
-                          strerror(errno),                                                                             \
-                          errno,                                                                                       \
-                          meha::utils::BacktraceToString().c_str());                                                          \
-            assert(cond);                                                                                              \
-        }                                                                                                              \
+#define ASSERT_FMT(cond, fmt, args...)                                                      \
+    do {                                                                                    \
+        if (!(cond)) {                                                                      \
+            LOG_FMT_FATAL(GET_ROOT_LOGGER(),                                                \
+                          "Assertion: " #cond ", " fmt "\nSysErr: %s (%u)\nBacktrace:\n%s", \
+                          ##args,                                                           \
+                          ::strerror(errno),                                                \
+                          errno,                                                            \
+                          meha::utils::BacktraceToString().c_str());                        \
+            assert(cond);                                                                   \
+        }                                                                                   \
     } while (0)
 #endif
 
-namespace meha::utils {
+namespace meha::utils
+{
 
 // 获取linux下线程的唯一id
 uint32_t GetThreadID();

@@ -6,13 +6,15 @@
 
 #include "sem.h"
 
-namespace meha {
+namespace meha
+{
 
 /**
  * @brief 线程管理类（不可拷贝但可移动），类似于QThread，线程本身是pthread
  * @note 执行的线程函数如果含有参数，需要使用std::bind先构造偏函数
  */
-class Thread : public noncopyable {
+class Thread : public noncopyable
+{
 public:
     using sptr = std::shared_ptr<Thread>;
     using uptr = std::unique_ptr<Thread>;
@@ -26,14 +28,15 @@ public:
     struct ThreadClosure
     {
         ThreadClosure(const std::string_view &name, const ThreadFunc &callback, void *user_data = nullptr)
-            : name(name),
-              callback(std::move(callback)),
-              user_data(user_data)
-        {}
+            : name(name)
+            , callback(std::move(callback))
+            , user_data(user_data)
+        {
+        }
         std::string_view name;
         ThreadFunc callback;
         void *user_data;
-        void runInThread();  // 根据传入的UserData启动线程，类似于moveToThread
+        void runInThread(); // 根据传入的UserData启动线程，类似于moveToThread
     };
 
     explicit Thread(ThreadFunc callback, const std::string_view &name = "annoymous_thread");
@@ -64,4 +67,4 @@ private:
     bool m_started;
     bool m_joined;
 };
-}  // namespace meha
+} // namespace meha

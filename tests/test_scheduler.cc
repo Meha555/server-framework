@@ -13,7 +13,6 @@ void fn1()
 {
     for (int i = 0; i < 3; i++) {
       std::cout << "啊啊啊啊id= " << utils::GetFiberID() << std::endl;
-      Fiber::Yield();
     }
 }
 
@@ -21,7 +20,6 @@ void fn2()
 {
     for (int i = 0; i < 3; i++) {
         std::cout << "哦哦哦哦id= " << utils::GetFiberID() << std::endl;
-        Fiber::Yield();
     }
 }
 
@@ -31,10 +29,10 @@ TEST(TEST_CASE, test1)
     sc.start();
     // 此时可以添加任务执行了
     sc.schedule(fn1);
-    // for (int i = 0; i < 3; i++) {
-    //     sc.schedule(std::bind([](int i) { std::cout << ">>>任务 " << i << std::endl; }, i));
-    // }
-    // sc.schedule(fn2);
+    for (int i = 0; i < 3; i++) {
+        sc.schedule(std::bind([](int i) { std::cout << ">>>任务 " << i << std::endl; }, i));
+    }
+    sc.schedule(fn2);
     sc.stop();
 }
 

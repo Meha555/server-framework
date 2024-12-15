@@ -34,9 +34,15 @@ void ThreadSemaphore::post()
     ASSERT(sem_post(&m_semaphore) == 0);
 }
 
-FiberSemaphore::FiberSemaphore(uint32_t concurency) : m_concurency(concurency) {}
+FiberSemaphore::FiberSemaphore(uint32_t concurency)
+    : m_concurency(concurency)
+{
+}
 
-FiberSemaphore::~FiberSemaphore() { ASSERT(m_waiting_list.empty()); }
+FiberSemaphore::~FiberSemaphore()
+{
+    ASSERT(m_waiting_list.empty());
+}
 
 bool FiberSemaphore::tryWait()
 {
@@ -61,15 +67,15 @@ void FiberSemaphore::wait()
             m_waiting_list.emplace_back(std::make_pair(Scheduler::GetCurrent(), Fiber::GetCurrent()));
         }
     }
-    //挂在信号量等待队列上，解锁，挂起当前协程
-    // Fiber::YieldToHold(); //FIXME
+    // 挂在信号量等待队列上，解锁，挂起当前协程
+    //  Fiber::YieldToHold(); //FIXME
 }
 
 void FiberSemaphore::post()
 {
     SpinScopedLock lock(&m_mutex);
     if (!m_waiting_list.empty()) {
-        auto next = m_waiting_list.front();  //取队首协程来调度
+        auto next = m_waiting_list.front(); // 取队首协程来调度
         m_waiting_list.pop_front();
         next.first->schedule(next.second);
     } else {

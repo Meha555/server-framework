@@ -20,16 +20,37 @@ public:
     ~FileDescriptor();
 
     bool init();
-    bool isInit() const { return m_is_init; };
-    bool isSocket() const { return m_is_socket; };
-    bool isClosed() const { return m_is_closed; };
+    bool isInit() const
+    {
+        return m_is_init;
+    };
+    bool isSocket() const
+    {
+        return m_is_socket;
+    };
+    bool isClosed() const
+    {
+        return m_is_closed;
+    };
     bool close();
 
-    void setUserNonBlock(bool v) { m_user_non_block = v; }
-    bool getUserNonBlock() const { return m_user_non_block; }
+    void setUserNonBlock(bool v)
+    {
+        m_user_non_block = v;
+    }
+    bool getUserNonBlock() const
+    {
+        return m_user_non_block;
+    }
 
-    void setSyetemNonBlock(bool v) { m_system_non_block = v; }
-    bool getSystemNonBlock() const { return m_system_non_block; }
+    void setSyetemNonBlock(bool v)
+    {
+        m_system_non_block = v;
+    }
+    bool getSystemNonBlock() const
+    {
+        return m_system_non_block;
+    }
 
     void setTimeout(int type, uint64_t v);
     uint64_t getTimeout(int type);
@@ -46,7 +67,7 @@ private:
     uint64_t m_recv_timeout;
     uint64_t m_send_timeout;
 
-    meha::IOManager* m_iom;
+    meha::IOManager *m_iom;
 };
 
 /**

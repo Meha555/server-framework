@@ -44,7 +44,7 @@ void TEST_CreateIOManager() {
     iom.addEventListen(sockfd, meha::FDContext::FDEvent::READ, [&]() {
       recv(sockfd, buffer, sizeof(buffer), 0);
       LOG_FMT_INFO(g_logger, "服务端回应: %s", buffer);
-      iom.cancelAll(sockfd);
+      iom.cancelAllEvent(sockfd);
       close(sockfd);
     });
     iom.addEventListen(sockfd, meha::FDContext::FDEvent::WRITE, [&]() {

@@ -1,13 +1,14 @@
-#include "utils.h"
 #include "exception.h"
 #include "fiber.h"
 #include "log.h"
+#include "utils.h"
 #include <chrono>
 #include <cxxabi.h>
 #include <execinfo.h>
 #include <sys/time.h>
 
-namespace meha::utils {
+namespace meha::utils
+{
 
 // 获得top命令中展示的Linux线程ID
 uint32_t GetThreadID()
@@ -19,7 +20,10 @@ uint32_t GetThreadID()
     return tid;
 }
 
-uint64_t GetFiberID() { return Fiber::GetCurrentID(); }
+uint64_t GetFiberID()
+{
+    return Fiber::GetCurrentID();
+}
 
 void Backtrace(std::vector<std::string> &out, int size, int skip)
 {
@@ -60,7 +64,7 @@ void Backtrace(std::vector<std::string> &out, int size, int skip)
         assert(*plus_pos == '+');
         // 解析函数参数列表
         char *type = nullptr;
-        if (*brackets_pos + 1 != *plus_pos) {  // 如果有参数列表
+        if (*brackets_pos + 1 != *plus_pos) { // 如果有参数列表
             *plus_pos = '\0';
             int status = 0;
             type = abi::__cxa_demangle(brackets_pos + 1, nullptr, nullptr, &status);
@@ -89,7 +93,7 @@ std::string BacktraceToString(int size, int skip)
     // }
     // return ss.str();
     // FIXME 当前系统输出的backtrace格式不一致
-  return "";
+    return "";
 }
 
 std::chrono::milliseconds GetCurrentMS()

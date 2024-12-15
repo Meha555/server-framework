@@ -8,12 +8,14 @@
 #include <sys/types.h>
 #include <sys/un.h>
 
-namespace meha {
+namespace meha
+{
 
 /**
  * @brief 地址基类
  */
-class Address {
+class Address
+{
 public:
     friend std::ostream &operator<<(std::ostream &os, const Address &addr);
     using sptr = std::shared_ptr<Address>;
@@ -24,7 +26,7 @@ public:
      * @param[in] addrlen sockaddr的长度
      * @return 返回和sockaddr相匹配的Address,失败返回nullptr
      */
-    static Address::sptr Create(const sockaddr * const addr, const socklen_t addrlen);
+    static Address::sptr Create(const sockaddr *const addr, const socklen_t addrlen);
 
     virtual ~Address() = default;
 
@@ -51,7 +53,8 @@ protected:
 /**
  * @brief IP 地址基类
  */
-class IPAddress : public Address {
+class IPAddress : public Address
+{
 public:
     using sptr = std::shared_ptr<IPAddress>;
 
@@ -73,17 +76,18 @@ public:
 /**
  * @brief IPv4 地址信息类
  */
-class IPv4Address : public IPAddress {
+class IPv4Address : public IPAddress
+{
 public:
     using sptr = std::shared_ptr<IPv4Address>;
 
     explicit IPv4Address(uint32_t address = INADDR_ANY, uint16_t port = 0);
-    explicit IPv4Address(const sockaddr_in &addr);  // NOTE 这里是浅拷贝
+    explicit IPv4Address(const sockaddr_in &addr); // NOTE 这里是浅拷贝
 
     /**
      * @brief 根据地址字符串创建对象的辅助函数
      * @param socket_str marshal格式的字符串
-     * @return sptr 
+     * @return sptr
      */
     static sptr Create(const std::string &socket_str);
 
@@ -117,12 +121,13 @@ private:
 /**
  * @brief IPv6 地址信息类
  */
-class IPv6Address : public IPAddress {
+class IPv6Address : public IPAddress
+{
 public:
     using sptr = std::shared_ptr<IPv6Address>;
 
     explicit IPv6Address(const char *address = "", uint16_t port = 0);
-    explicit IPv6Address(const sockaddr_in6 &addr);  // NOTE 这里是浅拷贝
+    explicit IPv6Address(const sockaddr_in6 &addr); // NOTE 这里是浅拷贝
 
     /**
      * @brief 根据地址字符串创建对象的辅助函数
@@ -161,11 +166,12 @@ private:
 /**
  * @brief Unix 地址信息类
  */
-class UnixAddress : public Address {
+class UnixAddress : public Address
+{
 public:
     using sptr = std::shared_ptr<UnixAddress>;
     // REVIEW 这样->是不算解引用是吗？
-    static constexpr size_t MAX_PATH_LEN = sizeof(((sockaddr_un *)nullptr)->sun_path) - 1;  // -1是因为sun_path是字符数组，末尾终止符\0
+    static constexpr size_t MAX_PATH_LEN = sizeof(((sockaddr_un *)nullptr)->sun_path) - 1; // -1是因为sun_path是字符数组，末尾终止符\0
 
     explicit UnixAddress(const std::string &path);
 
@@ -186,13 +192,14 @@ protected:
 
 private:
     sockaddr_un m_addr;
-    socklen_t m_length;  // 由于UNIX套接字地址长度不固定，因此需要额外的成员来记录地址结构体总长度（字节数）
+    socklen_t m_length; // 由于UNIX套接字地址长度不固定，因此需要额外的成员来记录地址结构体总长度（字节数）
 };
 
 /**
  * @brief 未知地址信息类
  */
-class UnknowAddress : public Address {
+class UnknowAddress : public Address
+{
 public:
     using sptr = std::shared_ptr<UnknowAddress>;
 
@@ -211,6 +218,9 @@ private:
     sockaddr m_addr;
 };
 
-inline std::ostream &operator<<(std::ostream &os, const Address &addr) { return addr.marshal(os); }
+inline std::ostream &operator<<(std::ostream &os, const Address &addr)
+{
+    return addr.marshal(os);
+}
 
-}  // namespace meha
+} // namespace meha

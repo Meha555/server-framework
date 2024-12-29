@@ -1,3 +1,4 @@
+find_package(fmt CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 find_package(Boost COMPONENTS REQUIRED)
 if (Boost_FOUND)

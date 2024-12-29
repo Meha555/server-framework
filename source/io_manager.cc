@@ -8,6 +8,7 @@
 #include <string>
 #include <sys/epoll.h>
 #include <unistd.h>
+#include <variant>
 
 namespace meha
 {
@@ -16,46 +17,50 @@ static Logger::ptr root_logger = GET_LOGGER("root");
 
 /* -------------------------------- FDContext ------------------------------- */
 
-void FDContext::addEvent(FDEvent event)
+void FdContext::addEvent(FdEvent event)
 {
-    m_events = static_cast<FDEvent>(m_events | event);
+    m_events = static_cast<FdEvent>(m_events | event);
 }
 
-void FDContext::delEvent(FDEvent event)
+void FdContext::delEvent(FdEvent event)
 {
-    m_events = static_cast<FDEvent>(m_events & ~event);
+    m_events = static_cast<FdEvent>(m_events & ~event);
 }
 
-void FDContext::triggerEvent(FDEvent event)
+void FdContext::triggerEvent(FdEvent event)
 {
     ASSERT(m_events & event);
     delEvent(event); // 清除触发状态
     auto &handler = getHandler(event);
     if (!handler.isEmpty()) {
-        handler.scheduler->schedule(std::move(handler.handle));
+        if (auto fp = std::get_if<Fiber::sptr>(&handler.handle)) {
+            handler.scheduler->schedule(std::move(*fp));
+        } else if (auto fc = std::get_if<Fiber::FiberFunc>(&handler.handle)) {
+            handler.scheduler->schedule(std::move(*fc));
+        }
     }
     ClearHandler(handler); // 从FDContext中删除该事件对应的信息
 }
 
-FDContext::EventHandler &FDContext::getHandler(FDEvent event)
+FdContext::EventHandler &FdContext::getHandler(FdEvent event)
 {
     switch (event) {
-    case FDEvent::READ:
+    case FdEvent::READ:
         return m_read_handler;
-    case FDEvent::WRITE:
+    case FdEvent::WRITE:
         return m_write_handler;
     default:
         throw std::invalid_argument("事件类型不正确");
     }
 }
 
-void FDContext::setHandler(FDEvent event, Scheduler::sptr scheduler, const Fiber::FiberFunc &callback)
+void FdContext::setHandler(FdEvent event, Scheduler::sptr scheduler, const Fiber::FiberFunc &callback)
 {
     auto &ev_handler = getHandler(event);
     ev_handler.reset(scheduler, callback);
 }
 
-void FDContext::ClearHandler(FDContext::EventHandler &handler)
+void FdContext::ClearHandler(FdContext::EventHandler &handler)
 {
     handler.reset(nullptr, nullptr);
 }
@@ -63,7 +68,7 @@ void FDContext::ClearHandler(FDContext::EventHandler &handler)
 /* -------------------------------- IOManager ------------------------------- */
 
 #define FIND_EVENT_LISTEN(fd, event)                      \
-    FDContext *fd_ctx = nullptr;                          \
+    FdContext *fd_ctx = nullptr;                          \
     {                                                     \
         ReadScopedLock lock(&m_mutex);                    \
         if (m_fdctxs.size() <= static_cast<size_t>(fd)) { \
@@ -76,12 +81,12 @@ void FDContext::ClearHandler(FDContext::EventHandler &handler)
         return false;                                     \
     }
 
-#define EVENT_LISTEN_ACTION(fd_ctx, epoll_action)                                 \
+#define EVENT_LISTEN_ACTION(fd_ctx, epoll_action)                                    \
     const int op = fd_ctx->m_events == FDEvent::NONE ? epoll_action : EPOLL_CTL_MOD; \
     ::epoll_event epevent{};                                                         \
     epevent.events = EPOLLET | fd_ctx->m_events;                                     \
     epevent.data.ptr = fd_ctx;                                                       \
-    if (::epoll_ctl(m_epoll_fd, op, fd_ctx->m_fd, &epevent) == -1) {                           \
+    if (::epoll_ctl(m_epoll_fd, op, fd_ctx->m_fd, &epevent) == -1) {                 \
         return false;                                                                \
     }
 
@@ -97,16 +102,16 @@ IOManager::IOManager(size_t pool_size, bool use_caller)
     m_epoll_fd = ::epoll_create(0xffff);
     ASSERT(m_epoll_fd > 0);
     // 创建管道，并加入 epoll 监听（统一事件源）
-    ASSERT(::pipe(m_tickle_fds) > 0);
+    ASSERT(::pipe(m_tickle_fds) != -1);
     // 最初需要创建监听管道的读端作为最初的监听对象
     ::epoll_event event{};
     event.data.fd = m_tickle_fds[0];
     // 1. 设置监听读就绪，边缘触发模式
     event.events = EPOLLIN | EPOLLET;
     // 2. 将管道读取端设置为非阻塞模式
-    ASSERT(::fcntl(m_tickle_fds[0], F_SETFL, O_NONBLOCK) > 0);
+    ASSERT(::fcntl(m_tickle_fds[0], F_SETFL, O_NONBLOCK) != -1);
     // 3. 将管道读端加入 epoll 监听
-    ASSERT(::epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, m_tickle_fds[0], &event) > 0);
+    ASSERT(::epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, m_tickle_fds[0], &event) != -1);
     contextListResize(64);
     // 启动调度器
     start();
@@ -126,15 +131,15 @@ void IOManager::contextListResize(size_t size)
     m_fdctxs.resize(size); // REVIEW 这里用reserve怎么样？？
     for (size_t i = 0; i < m_fdctxs.size(); i++) {
         if (!m_fdctxs[i]) {
-            m_fdctxs[i] = std::make_unique<FDContext>();
+            m_fdctxs[i] = std::make_unique<FdContext>();
             m_fdctxs[i]->m_fd = i;
         }
     }
 }
 
-bool IOManager::addEventListen(int fd, FDEvent event, Fiber::FiberFunc callback)
+bool IOManager::subscribeEvent(int fd, FDEvent event, Fiber::FiberFunc callback)
 {
-    FDContext *fd_ctx = nullptr;
+    FdContext *fd_ctx = nullptr;
     ReadScopedLock lock(&m_mutex);
     // 从 FDContext 池中拿对象
     if (m_fdctxs.size() > static_cast<size_t>(fd)) { // 对象池足够大
@@ -149,7 +154,7 @@ bool IOManager::addEventListen(int fd, FDEvent event, Fiber::FiberFunc callback)
     ScopedLock lock3(&fd_ctx->m_mutex);
     // 如果要监听的事件已经存在，则覆盖它
     if (fd_ctx->m_events & event) {
-        cancelEventListen(fd, event);
+        triggerEvent(fd, event);
     }
 
     fd_ctx->addEvent(event);
@@ -158,19 +163,19 @@ bool IOManager::addEventListen(int fd, FDEvent event, Fiber::FiberFunc callback)
     return true;
 }
 
-bool IOManager::removeEventListen(int fd, FDEvent event)
+bool IOManager::unsubscribeEvent(int fd, FDEvent event)
 {
     FIND_EVENT_LISTEN(fd, event);
     // 从对应的 fd_ctx 中删除该事件
     fd_ctx->delEvent(event);
     EVENT_LISTEN_ACTION(fd_ctx, EPOLL_CTL_DEL);
     // 如果该fd没有其他在监听的事件了，要从epoll对象中移除对该fd的监听
-    FDContext::ClearHandler(fd_ctx->getHandler(event));
+    FdContext::ClearHandler(fd_ctx->getHandler(event));
     --m_pending_event_count;
     return true;
 }
 
-bool IOManager::cancelEventListen(int fd, FDEvent event)
+bool IOManager::triggerEvent(int fd, FDEvent event)
 {
     FIND_EVENT_LISTEN(fd, event);
     fd_ctx->delEvent(event);
@@ -180,7 +185,7 @@ bool IOManager::cancelEventListen(int fd, FDEvent event)
     return true;
 }
 
-bool IOManager::cancelAllEventListen(int fd)
+bool IOManager::triggerAllEvents(int fd)
 {
     FIND_EVENT_LISTEN(fd, 1);
     if (::epoll_ctl(m_epoll_fd, EPOLL_CTL_DEL, fd, nullptr) == -1) {
@@ -262,7 +267,7 @@ void IOManager::idle()
                 continue;
             }
             // 处理非主线程的消息
-            auto fd_ctx = static_cast<FDContext *>(ev.data.ptr);
+            auto fd_ctx = static_cast<FdContext *>(ev.data.ptr);
             ScopedLock lock(&fd_ctx->m_mutex);
             // 该事件的 fd 出现错误或者已经失效
             if (ev.events & (EPOLLERR | EPOLLHUP)) {

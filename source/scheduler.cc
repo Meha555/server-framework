@@ -113,7 +113,7 @@ void Scheduler::tickle()
 
 void Scheduler::run()
 {
-    setHookEnable(true);
+    hook::SetHookEnable(true);
     t_scheduler = shared_from_this();
     // 为调度线程开启协程
     t_scheduler_fiber = Fiber::GetCurrent();

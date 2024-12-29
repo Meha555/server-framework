@@ -64,11 +64,11 @@ void FiberSemaphore::wait()
             --m_concurency;
             return;
         } else {
-            m_waiting_list.emplace_back(std::make_pair(Scheduler::GetCurrent(), Fiber::GetCurrent()));
+            m_waiting_list.emplace_back(std::make_pair(Scheduler::GetCurrent().get(), Fiber::GetCurrent()));
         }
     }
     // 挂在信号量等待队列上，解锁，挂起当前协程
-    //  Fiber::YieldToHold(); //FIXME
+    Fiber::Yield();
 }
 
 void FiberSemaphore::post()

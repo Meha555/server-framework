@@ -91,7 +91,7 @@ public:
     Timer::sptr addTimer(uint64_t ms, Timer::TimeOutFunc fn, bool cyclic = false);
 
     /**
-     * @brief 新增一个条件定时器。当到达执行时间时，提供的条件变量依旧有效，则执行，否则不执行
+     * @brief 新增一个条件定时器。当到达执行时间时，若提供的条件变量依旧有效则执行回调，否则不执行回调
      * @param ms 延迟毫秒数
      * @param fn 回调函数
      * @param weak_cond 条件变量，利用智能指针是否有效作为判断条件

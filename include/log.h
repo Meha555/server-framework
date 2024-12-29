@@ -15,9 +15,9 @@
 #include "singleton.h"
 #include "utils.h"
 
-#define GET_ROOT_LOGGER() meha::LoggerManager::GetInstance()->getRootLogger()
+#define GET_ROOT_LOGGER() meha::LoggerManager::Instance()->getRootLogger()
 #define GET_LOGGER(category) \
-    meha::LoggerManager::GetInstance()->getLogger(category)
+    meha::LoggerManager::Instance()->getLogger(category)
 
 // 生成一个LogEvent::ptr的宏
 #define MAKE_LOG_EVENT(category, level, message)                              \

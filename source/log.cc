@@ -462,11 +462,11 @@ LogFormatter::LogFormatter(const std::string &pattern)
 
 void LogFormatter::parse()
 {
-    enum PaseStatus {
+    enum ParseStatus {
         DO_SCAN, // 是普通字符，直接保存
         DO_CREATE, // 是 %，处理占位符
     };
-    PaseStatus status = DO_SCAN;
+    ParseStatus status = DO_SCAN;
     size_t item_begin = 0, item_end = 0; // 左闭右闭区间
     for (size_t i = 0; i < m_pattern.length(); i++) { // 注意这里每次i都会+1
         switch (status) {
@@ -481,15 +481,13 @@ void LogFormatter::parse()
                 }
             }
             i = item_end;
-            m_fmt_items.push_back(std::make_shared<PlainFormatItem>(
-                m_pattern.substr(item_begin, item_end - item_begin)));
+            m_fmt_items.push_back(std::make_shared<PlainFormatItem>(m_pattern.substr(item_begin, item_end - item_begin)));
         } break;
         case DO_CREATE: { // 处理占位符
             assert(!g_format_item_map.empty() && "g_format_item_map 没有被正确的初始化");
             auto itor = g_format_item_map.find(m_pattern[i]);
             if (itor == g_format_item_map.end()) {
-                m_fmt_items.push_back(
-                    std::make_shared<PlainFormatItem>("<error format>"));
+                m_fmt_items.push_back(std::make_shared<PlainFormatItem>("<error format>"));
             } else {
                 m_fmt_items.push_back(itor->second);
             }
@@ -599,7 +597,7 @@ LogIniter::LogIniter()
     log_config_list->addListener(
         [](const std::vector<LogConfig> &, const std::vector<LogConfig> &) {
             std::cout << "日志器配置变动，更新日志器" << std::endl;
-            LoggerManager::GetInstance()->init();
+            LoggerManager::Instance()->init();
         });
 }
 

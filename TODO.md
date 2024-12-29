@@ -3,6 +3,7 @@
 - [ ] 日志：框架默认的日志器是core，用户程序默认的日志器是root，并同步修改流式宏
 - [ ] 将 string 换成 string_view
 - [ ] 不要滥用assert，assert只用于调试，不是用于正式的错误处理。release代码中assert不会被编译
+- [ ] 重构Timer
 
 # 未来计划
 

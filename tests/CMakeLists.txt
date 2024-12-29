@@ -1,6 +1,8 @@
 find_package(GTest CONFIG REQUIRED)
 
-file(GLOB src_list *.cc)
+# file(GLOB src_list *.cc)
+# 如果使用aux_source_directory来代替的话，注意只能使用绝对路径
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} src_list)
 
 message(STATUS "生成单元测试")
 enable_testing() # 启用CTest

@@ -7,111 +7,96 @@ namespace meha
 {
 
 FileDescriptor::FileDescriptor(int fd)
-    : m_is_init(false)
-    , m_is_socket(false)
-    , m_system_non_block(false)
-    , m_user_non_block(false)
-    , m_is_closed(false)
+    : m_state{false, false, false, false}
     , m_fd(fd)
-    , m_recv_timeout(-1)
-    , m_send_timeout(-1)
+    , m_recvTimeout(-1)
+    , m_sendTimeout(-1)
     , m_iom(nullptr)
 {
     init();
 }
 
-FileDescriptor::~FileDescriptor()
+void FileDescriptor::init()
 {
-}
-
-bool FileDescriptor::init()
-{
-    if (m_is_init) {
-        return true;
-    }
-    m_recv_timeout = -1;
-    m_send_timeout = -1;
     struct stat fd_stat;
     if (fstat(m_fd, &fd_stat) == -1) {
-        m_is_init = false;
-        m_is_socket = false;
+        m_state.isSocket = false;
     } else {
-        m_is_init = true;
-        m_is_socket = S_ISSOCK(fd_stat.st_mode);
+        m_state.isSocket = S_ISSOCK(fd_stat.st_mode);
     }
 
-    if (m_is_socket) {
-        int flags = fcntl_f(m_fd, F_GETFL, 0);
+    if (isSocket()) {
         // 强制 socket 文件描述符为非阻塞模式
-        if (!(flags & O_NONBLOCK)) {
-            fcntl_f(m_fd, F_SETFL, flags | O_NONBLOCK);
-        }
-        m_system_non_block = true;
+        int flags = fcntl_f(m_fd, F_GETFL, 0); // NOTE 注意这里要调用hook前的原API
+        fcntl_f(m_fd, F_SETFL, flags | O_NONBLOCK);
+        m_state.sysNONBLOCK = true; // NOTE 框架内部设置O_NONBLOCK也属于系统设置非阻塞
     } else {
-        m_system_non_block = false;
+        m_state.sysNONBLOCK = false;
     }
-    m_user_non_block = false;
-    m_is_closed = false;
-    return m_is_init;
+    m_state.userNONBLOCK = false;
+    m_state.isClosed = false;
 }
 
-bool FileDescriptor::close()
+void FileDescriptor::setTimeout(TimeoutType type, uint64_t v)
 {
-    return false;
-}
-
-void FileDescriptor::setTimeout(int type, uint64_t v)
-{
-    if (type == SO_RCVTIMEO) {
-        m_recv_timeout = v;
+    if (type == RecvTimeout) {
+        m_recvTimeout = v;
+    } else if (type == SendTimeout) {
+        m_sendTimeout = v;
     } else {
-        m_send_timeout = v;
+        ASSERT_FMT(false, "未知的超时类型：%d", type);
     }
 }
 
-uint64_t FileDescriptor::getTimeout(int type)
+uint64_t FileDescriptor::timeout(TimeoutType type)
 {
-    if (type == SO_RCVTIMEO) {
-        return m_recv_timeout;
+    if (type == RecvTimeout) {
+        return m_recvTimeout;
+    } else if (type == SendTimeout) {
+        return m_sendTimeout;
     } else {
-        return m_send_timeout;
+        ASSERT_FMT(false, "未知的超时类型：%d", type);
     }
 }
 
 FileDescriptorManagerImpl::FileDescriptorManagerImpl()
 {
-    m_data.resize(64);
+    m_fdPool.resize(64);
 }
 
-FileDescriptor::ptr FileDescriptorManagerImpl::get(int fd, bool auto_create)
+FileDescriptor::sptr FileDescriptorManagerImpl::fetch(int fd, bool only_if_exists)
 {
-    ReadScopedLock lock(&m_lock);
-    if (m_data.size() <= static_cast<size_t>(fd)) {
-        if (!auto_create) {
-            return nullptr;
+    if (fd < 0) {
+        return nullptr;
+    }
+    ReadScopedLock rlock(&m_lock);
+    if (m_fdPool.size() > static_cast<size_t>(fd)) {
+        if (m_fdPool[fd] || only_if_exists) {
+            return m_fdPool[fd];
         }
     } else {
-        if (m_data[fd] || !auto_create) {
-            return m_data[fd];
+        if (only_if_exists) {
+            return nullptr;
         }
     }
-    lock.unlock();
+    rlock.unlock();
 
-    assert(m_data.size() > static_cast<size_t>(fd) && "vector FileDescriptorManagerImpl::m_data 越界访问");
-
-    WriteScopedLock lock2(&m_lock);
-    FileDescriptor::ptr fdp(new FileDescriptor(fd));
-    m_data[fd] = fdp;
+    WriteScopedLock wlock(&m_lock);
+    if (m_fdPool.size() <= fd) {
+        m_fdPool.resize(fd << 1);
+    }
+    auto fdp = std::make_shared<FileDescriptor>(fd);
+    m_fdPool[fd] = fdp;
     return fdp;
 }
 
 void FileDescriptorManagerImpl::remove(int fd)
 {
     WriteScopedLock lock(&m_lock);
-    if (m_data.size() <= static_cast<size_t>(fd)) {
+    if (m_fdPool.size() <= static_cast<size_t>(fd)) {
         return;
     }
-    m_data[fd].reset();
+    m_fdPool[fd].reset();
 }
 
 } // namespace meha

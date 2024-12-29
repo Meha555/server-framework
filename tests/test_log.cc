@@ -16,7 +16,7 @@
 TEST(TEST_CASE, CStyleLogger)
 {
     std::cout << ">>>>>> 测试日志器的默认用法 <<<<<<" << std::endl;
-    auto logger = meha::LoggerManager::GetInstance()->getLogger("root");
+    auto logger = meha::LoggerManager::Instance()->getLogger("root");
     auto event = MAKE_LOG_EVENT(logger->getCategory(), DEBUG, "wdnmd");
     logger->log(event);
     logger->debug(event);
@@ -57,7 +57,7 @@ TEST(TEST_CASE, NonexistLogger)
 {
     std::cout << ">>>>>> 测试获取不存在的日志器 <<<<<<" << std::endl;
     try {
-        meha::LoggerManager::GetInstance()->getLogger("nonexistent");
+        meha::LoggerManager::Instance()->getLogger("nonexistent");
     } catch (const std::exception &e) {
         std::cerr << e.what() << '\n';
     }

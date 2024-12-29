@@ -22,7 +22,7 @@ namespace utils
 namespace internal
 {
 template<typename Executable>
-struct is_valid_single_type
+struct is_valid_task
 {
     static constexpr bool value = std::is_same_v<std::remove_cv_t<std::remove_reference_t<Executable>>, meha::Fiber::sptr> || // std::shared_ptr<Fiber>
         std::is_same_v<std::remove_cv_t<std::remove_reference_t<Executable>>, meha::Fiber::FiberFunc> || // std::function<void()>
@@ -34,13 +34,14 @@ struct is_valid_single_type
 template<typename Executable>
 struct is_vaild_task
 {
-    static constexpr bool value = internal::is_valid_single_type<std::remove_reference_t<Executable>>::value;
+    static constexpr bool value = internal::is_valid_task<std::remove_reference_t<Executable>>::value;
 };
 
+// 针对std::variant的特化版本
 template<typename... Types>
 struct is_vaild_task<std::variant<Types...>>
 {
-    static constexpr bool value = (internal::is_valid_single_type<Types>::value || ...);
+    static constexpr bool value = (internal::is_valid_task<Types>::value || ...);
 };
 } // namespace utils
 // TODO 完善一下上面实现判断合法task类型的模板，是否使用SFINAE
@@ -78,7 +79,7 @@ private:
         {
             ASSERT_FMT(f->isScheduled(), "协程必须参与调度器调度");
         }
-        Task(Fiber::FiberFunc &&cb, pid_t tid)
+        Task(const Fiber::FiberFunc &cb, pid_t tid)
             : handle(std::make_shared<Fiber>(cb, true))
             , tid(tid)
         {
@@ -142,7 +143,6 @@ public:
     {
         bool need_tickle = false;
         {
-            static_assert(utils::is_vaild_task<Executable>::value, "任务类型必须是std::shared_ptr<meha::Fiber>或std::function<void()>"); // FIXME 怎么支持lambda？
             WriteScopedLock lock(&m_mutex);
             need_tickle = addTask(std::forward<Executable>(exec), thread_id);
         }
@@ -202,11 +202,11 @@ private:
     template<typename Executable>
     bool addTask(Executable &&exec, pid_t thread_id = -1, bool instant = false)
     {
-        static_assert(utils::is_vaild_task<Executable>::value, "任务类型必须是std::shared_ptr<meha::Fiber>或std::function<void()>");
+        static_assert(utils::is_vaild_task<Executable>::value, "任务类型必须是std::shared_ptr<meha::Fiber>或std::function<void()>"); // FIXME 怎么支持lambda？
         bool need_tickle = m_task_list.empty();
-        auto task = std::make_shared<Task>(std::forward<Executable>(exec), thread_id);
+        auto task = Task(std::forward<Executable>(exec), thread_id);
         // 优先调度的任务放在队首
-        if (task->handle) {
+        if (task.handle) {
             if (instant)
                 m_task_list.push_front(std::move(task));
             else

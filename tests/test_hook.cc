@@ -2,10 +2,13 @@
 #include "io_manager.h"
 #include "log.h"
 #include <arpa/inet.h>
+#include <gtest/gtest.h>
 
 meha::Logger::ptr g_logger = GET_ROOT_LOGGER();
 
-void test_sleep()
+#define TEST_CASE HookTest
+
+TEST(TEST_CASE, sleep)
 {
     meha::IOManager iom(1);
     LOG_DEBUG(g_logger, "main() 开始");
@@ -26,55 +29,57 @@ void test_sleep()
     LOG_DEBUG(g_logger, "main() 结束");
 }
 
-void test_sock()
+TEST(TEST_CASE, sock)
 {
-    int sockfd;
-    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-    {
-        perror("啊这");
-        exit(1);
-    }
-    sockaddr_in addr{};
-    memset(&addr, 0, sizeof(addr));
+    std::function<void()> test_sock = [] () {
+        int sockfd;
+        if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+        {
+            perror("啊这");
+            exit(1);
+        }
+        sockaddr_in addr{};
+        memset(&addr, 0, sizeof(addr));
 
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(80);
-    inet_pton(AF_INET, "192.168.100.254", &addr.sin_addr.s_addr);
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(80);
+        inet_pton(AF_INET, "192.168.100.254", &addr.sin_addr.s_addr);
 
-    LOG_INFO(g_logger, "开始连接");
-    if (connect(sockfd, (struct sockaddr*)(&addr), sizeof(struct sockaddr)) == -1)
-    {
-        perror("啊这");
-        exit(1);
-    }
-    LOG_INFO(g_logger, "连接成功");
+        LOG_INFO(g_logger, "开始连接");
+        if (connect(sockfd, (struct sockaddr*)(&addr), sizeof(struct sockaddr)) == -1)
+        {
+            perror("啊这");
+            exit(1);
+        }
+        LOG_INFO(g_logger, "连接成功");
 
-    const char data[] = "GET / HTTP/1.0\r\n\r\n";
-    auto rt = send(sockfd, data, sizeof(data), 0);
-    LOG_FMT_DEBUG(g_logger, "sent() rt=%ld, errno=%d", rt, errno);
-    if (rt <= 0)
-    {
-        return;
-    }
+        const char data[] = "GET / HTTP/1.0\r\n\r\n";
+        auto rt = send(sockfd, data, sizeof(data), 0);
+        LOG_FMT_DEBUG(g_logger, "sent() rt=%ld, errno=%d", rt, errno);
+        if (rt <= 0)
+        {
+            return;
+        }
 
-    std::string buff;
-    buff.resize(4096);
-    rt = recv(sockfd, &buff[0], buff.size(), 0);
-    LOG_FMT_DEBUG(g_logger, "recv() rt=%ld, errno=%d", rt, errno);
-    if (rt <= 0)
-    {
-        return;
-    }
-    buff.resize(rt);
-    LOG_FMT_DEBUG(g_logger, "buff:\n %s", buff.c_str());
-}
-
-int main()
-{
+        std::string buff;
+        buff.resize(4096);
+        rt = recv(sockfd, &buff[0], buff.size(), 0);
+        LOG_FMT_DEBUG(g_logger, "recv() rt=%ld, errno=%d", rt, errno);
+        if (rt <= 0)
+        {
+            return;
+        }
+        buff.resize(rt);
+        LOG_FMT_DEBUG(g_logger, "buff:\n %s", buff.c_str());
+    };
     LOG_DEBUG(g_logger, "main() 开始");
     meha::IOManager iom(1);
     iom.schedule(test_sock);
     LOG_DEBUG(g_logger, "main() 结束");
+}
 
-    return 0;
+int main(int argc, char *argv[])
+{
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

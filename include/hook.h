@@ -1,5 +1,10 @@
 #pragma once
 
+/* -------------------------------------------------------------------------- */
+/*                          该文件用于定义侵入式Hook的符号                        */
+/* -------------------------------------------------------------------------- */
+
+extern "C" {
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -7,19 +12,20 @@
 #include <sys/uio.h>
 #include <time.h>
 #include <unistd.h>
+}
 
-namespace meha
+namespace meha::hook
 {
 
 /**
  * @brief 检查当前线程是否开启系统函数 hook 到协程的实现
  */
-bool isHookEnabled();
+bool IsHookEnabled();
 
 /**
  * @brief 开启系统函数 hook 到协程的实现
  */
-void setHookEnable(bool flag);
+void SetHookEnable(bool flag);
 
 } // namespace meha
 

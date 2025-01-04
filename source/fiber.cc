@@ -11,7 +11,7 @@
 namespace meha
 {
 
-static Logger::ptr g_logger = GET_LOGGER("root");
+static Logger::sptr g_logger = GET_LOGGER("root");
 
 // 注意这两个不是thread_local的，因为希望让整个程序中的协程号都递增，因此也必须是atmoic的来保证线程安全
 // 最后一个协程的id，单调递增用于在整个程序的生命周期内生成协程id，因此存在协程数量限制
@@ -25,7 +25,7 @@ static thread_local Fiber::sptr t_current_fiber{nullptr};
 static thread_local Fiber::sptr t_master_fiber{nullptr};
 
 // 协程栈大小配置项（默认协程栈空间为128KB）
-static ConfigItem<uint64_t>::ptr g_fiber_stack_size{Config::Lookup<uint64_t>("fiber.stack_size", 128 * 1024, "单位:B")};
+static ConfigItem<uint64_t>::sptr g_fiber_stack_size{Config::Lookup<uint64_t>("fiber.stack_size", 128 * 1024, "单位:B")};
 
 /**
  * @brief 对 malloc/free 简单封装的内存分配器接口

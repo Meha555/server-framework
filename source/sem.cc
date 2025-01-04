@@ -12,7 +12,7 @@
 
 using namespace meha;
 
-static Logger::ptr root_logger = GET_LOGGER("root");
+static Logger::sptr root_logger = GET_LOGGER("root");
 
 ThreadSemaphore::ThreadSemaphore(uint32_t count)
 {

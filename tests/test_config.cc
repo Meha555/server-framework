@@ -15,9 +15,7 @@ using namespace std;
 auto config_system_port = meha::Config::Lookup<int>("system.port", 6666);
 auto config_test_array = meha::Config::Lookup<vector<string>>("test_array", vector<string>{"vector", "string"});
 auto config_test_linklist = meha::Config::Lookup<list<string>>("test_list", list<string>{"list", "string"});
-auto config_test_map = meha::Config::Lookup<map<string, string>>(
-    "test_map",
-    map<string, string>{{"map1", "srting"}, {"map2", "srting"}, {"map3", "srting"}});
+auto config_test_map = meha::Config::Lookup<map<string, string>>("test_map", map<string, string>{{"map1", "srting"}, {"map2", "srting"}, {"map3", "srting"}});
 auto config_test_set = meha::Config::Lookup<set<int>>("test_set", set<int>{10, 20, 30});
 
 /* --------------------------------- 自定义类型测试 -------------------------------- */

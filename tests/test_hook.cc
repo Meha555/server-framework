@@ -4,7 +4,7 @@
 #include <arpa/inet.h>
 #include <gtest/gtest.h>
 
-meha::Logger::ptr g_logger = GET_ROOT_LOGGER();
+meha::Logger::sptr g_logger = GET_ROOT_LOGGER();
 
 #define TEST_CASE HookTest
 

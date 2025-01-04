@@ -10,7 +10,7 @@
 namespace meha
 {
 
-static Logger::ptr root_logger = GET_LOGGER("root");
+static Logger::sptr root_logger = GET_LOGGER("root");
 
 /* --------------------------------- 线程局部变量 --------------------------------- */
 

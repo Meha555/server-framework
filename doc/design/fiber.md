@@ -1,5 +1,7 @@
 ## 协程模块
 
+//TODO: 不存在协程安全，因为同一时刻在单个线程中不可能有多个协程在跑？？？？？回顾一下线程安全的概念
+
 ### 协程
 
 > [协程模块 - 类库与框架 - 程序员的自我修养 (midlane.top)](https://www.midlane.top/wiki/pages/viewpage.action?pageId=10060957#id-协程模块-ucontext_t接口)

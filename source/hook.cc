@@ -11,9 +11,9 @@ extern "C" {
 namespace meha
 {
 
-static meha::Logger::ptr root_logger = GET_LOGGER("root");
+static meha::Logger::sptr root_logger = GET_LOGGER("root");
 
-static meha::ConfigItem<int>::ptr g_tcp_connect_timeout = meha::Config::Lookup("tcp.connect.timeout", 5000);
+static meha::ConfigItem<int>::sptr g_tcp_connect_timeout = meha::Config::Lookup("tcp.connect.timeout", 5000);
 
 namespace hook
 {
@@ -71,7 +71,8 @@ struct _HookIniter // 这种初始化类，在Qt插件中一般叫Factory
 #undef TRY_LOAD_HOOK_FUNC
     }
 };
-static _HookIniter s_hook_initer; // 定义一个静态的_HookIniter 对象，由于静态对象的初始化发生在main()调用前，因此hoot_init()会在程序执行前开始调用，从而确保原函数指针在main()开始时是可用的
+
+static _HookIniter _; // 定义一个静态的_HookIniter 对象，由于静态对象的初始化发生在main()调用前，因此hoot_init()会在程序执行前开始调用，从而确保原函数指针在main()开始时是可用的
 
 bool IsHookEnabled()
 {
@@ -354,9 +355,9 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
     int fd = meha::hook::doIO(sockfd, accept_f, "accept",
-                  meha::FdContext::FdEvent::READ,
-                  meha::FileDescriptor::RecvTimeout, // REVIEW 这里的recvtimout和sendtimeout是怎么确定的？
-                  addr, addrlen);
+                              meha::FdContext::FdEvent::READ,
+                              meha::FileDescriptor::RecvTimeout, // REVIEW 这里的recvtimout和sendtimeout是怎么确定的？
+                              addr, addrlen);
     meha::FileDescriptorManager::Instance()->fetch(fd, true);
     return fd;
 }
@@ -374,51 +375,51 @@ ssize_t readv(int fd, const struct iovec *iov, int iovcnt)
 ssize_t recv(int sockfd, void *buf, size_t len, int flags)
 {
     return meha::hook::doIO(sockfd, recv_f, "recv", meha::FdContext::FdEvent::READ, meha::FileDescriptor::RecvTimeout, buf,
-                len, flags);
+                            len, flags);
 }
 
 ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags,
                  struct sockaddr *src_addr, socklen_t *addrlen)
 {
     return meha::hook::doIO(sockfd, recvfrom_f, "recvfrom", meha::FdContext::FdEvent::READ, meha::FileDescriptor::RecvTimeout,
-                buf, len, flags, src_addr, addrlen);
+                            buf, len, flags, src_addr, addrlen);
 }
 
 ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags)
 {
     return meha::hook::doIO(sockfd, recvmsg_f, "recvfrom", meha::FdContext::FdEvent::READ, meha::FileDescriptor::RecvTimeout,
-                msg, flags);
+                            msg, flags);
 }
 
 ssize_t write(int fd, const void *buf, size_t count)
 {
     return meha::hook::doIO(fd, write_f, "write", meha::FdContext::FdEvent::WRITE, meha::FileDescriptor::SendTimeout, buf,
-                count);
+                            count);
 }
 
 ssize_t writev(int fd, const struct iovec *iov, int iovcnt)
 {
     return meha::hook::doIO(fd, writev_f, "writev_f", meha::FdContext::FdEvent::WRITE, meha::FileDescriptor::SendTimeout, iov,
-                iovcnt);
+                            iovcnt);
 }
 
 ssize_t send(int sockfd, const void *buf, size_t len, int flags)
 {
     return meha::hook::doIO(sockfd, send_f, "send", meha::FdContext::FdEvent::WRITE, meha::FileDescriptor::SendTimeout, buf,
-                len, flags);
+                            len, flags);
 }
 
 ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,
                const struct sockaddr *dest_addr, socklen_t addrlen)
 {
     return meha::hook::doIO(sockfd, sendto_f, "sendto", meha::FdContext::FdEvent::WRITE, meha::FileDescriptor::SendTimeout,
-                buf, len, flags, dest_addr, addrlen);
+                            buf, len, flags, dest_addr, addrlen);
 }
 
 ssize_t sendmsg(int sockfd, const struct msghdr *msg, int flags)
 {
     return meha::hook::doIO(sockfd, sendmsg_f, "sendmsg", meha::FdContext::FdEvent::WRITE, meha::FileDescriptor::SendTimeout,
-                msg, flags);
+                            msg, flags);
 }
 
 int close(int fd)

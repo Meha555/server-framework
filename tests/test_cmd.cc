@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include "cmd.h"
 
-using namespace meha::utils;
+using namespace meha;
 
 #define TEST_CASE CmdArgsTest
 

@@ -4,7 +4,7 @@
 #include <sstream>
 #include <string>
 
-namespace meha::utils
+namespace meha
 {
 
 static auto g_logger = GET_ROOT_LOGGER();
@@ -27,6 +27,8 @@ bool ArgParser::addArg(const Arg &arg)
         return addFlag(static_cast<const Flag &>(arg));
     case Arg::Type::Option:
         return addOption(static_cast<const Option &>(arg));
+    default:
+        abort();
     }
 }
 
@@ -65,7 +67,7 @@ bool ArgParser::isFlagSet(const std::string &key) const
     });
 }
 
-std::optional<std::any> ArgParser::getOptionValue(const std::string& key) const
+std::optional<std::any> ArgParser::getOptionValue(const std::string &key) const
 {
     auto it = std::find_if(m_optionsPattern.cbegin(), m_optionsPattern.cend(), [&key](const auto &arg) {
         return key == arg.second.data.longKey() || key == arg.second.data.shortKey();
@@ -76,10 +78,10 @@ std::optional<std::any> ArgParser::getOptionValue(const std::string& key) const
 std::string ArgParser::dumpAll() const
 {
     std::stringstream ss;
-    for (const auto& arg : m_flagsPattern) {
+    for (const auto &arg : m_flagsPattern) {
         ss << arg.second.data << '\n';
     }
-    for (const auto& arg : m_optionsPattern) {
+    for (const auto &arg : m_optionsPattern) {
         ss << arg.second.data << '\n'; //" is " << (arg.isSet ? "set" : "not set") <<
     }
     return ss.str();

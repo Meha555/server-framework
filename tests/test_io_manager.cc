@@ -9,7 +9,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-meha::Logger::ptr g_logger = GET_ROOT_LOGGER();
+meha::Logger::sptr g_logger = GET_ROOT_LOGGER();
 
 void test_fiber()
 {

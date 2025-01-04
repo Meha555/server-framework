@@ -91,7 +91,7 @@ TEST(TEST_CASE, AbnormalExecution) { test_fiber_abnormal(); }
 
 int main(int argc, char *argv[]) {
   testing::InitGoogleTest(&argc, argv);
-  g_logger->setLevel(LogEvent::LogLevel::DEBUG);
+  g_logger->setLevel(LogMessage::LogLevel::DEBUG);
   Thread::SetCurrentName("main_thread");
   return RUN_ALL_TESTS();
 }

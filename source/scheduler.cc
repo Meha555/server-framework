@@ -9,7 +9,7 @@
 namespace meha
 {
 
-static Logger::ptr root_logger = GET_LOGGER("root");
+static Logger::sptr root_logger = GET_LOGGER("root");
 // 当前线程的协程调度器
 static thread_local Scheduler::sptr t_scheduler{nullptr};
 // 新增：当前线程的调度协程（用于切到调度协程）。加上Fiber模块中记录的当前协程和主协程，现在记录了3个协程
@@ -53,8 +53,8 @@ Scheduler::~Scheduler()
     // 需要满足caller线程可以再次创建一个Scheduler并启动之，因此要重置线程局部变量
     // 判断一下析构的位置是否在caller线程中 // REVIEW 执行这个析构函数的只可能是caller线程吧，所以这个判断没有什么意义
     // if (GetCurrent().get() == this) {
-        t_scheduler = nullptr;
-        t_scheduler_fiber = nullptr;
+    t_scheduler = nullptr;
+    t_scheduler_fiber = nullptr;
     // }
     m_caller_fiber = nullptr;
 }

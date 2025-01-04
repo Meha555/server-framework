@@ -25,8 +25,7 @@ public:
     using FiberFunc = std::function<void()>;
 
     // 协程状态，用于调度
-    enum State
-    {
+    enum State {
         INIT, // 初始化（尚未执行过）
         READY, // 就绪（准备好执行）
         EXEC, // 执行（正在运行）

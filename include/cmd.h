@@ -1,14 +1,14 @@
 #include <algorithm>
 #include <any>
-#include <ostream>
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <unordered_map>
-#include <vector>
 #include <unordered_set>
+#include <vector>
 
-namespace meha::utils
+namespace meha
 {
 
 class Arg
@@ -104,9 +104,9 @@ class Option : public Arg
 public:
     friend class Rule;
     /**
-    * @brief 命令行选项需要满足的自定义规则
-    * @details 比如正则表达式
-    */
+     * @brief 命令行选项需要满足的自定义规则
+     * @details 比如正则表达式
+     */
     class Rule
     {
     public:
@@ -117,6 +117,7 @@ public:
         {
             return true;
         }
+
     private:
         std::string m_rule;
     };
@@ -169,7 +170,9 @@ public:
     }
     bool isFitRules()
     {
-        return std::all_of(m_rules.cbegin(), m_rules.cend(), [this](const auto &rule) { return rule->check(); });
+        return std::all_of(m_rules.cbegin(), m_rules.cend(), [this](const auto &rule) {
+            return rule->check();
+        });
     }
 
 private:
@@ -224,7 +227,10 @@ public:
      * 如果是希望去掉设置的期望参数模板，则应该重新创建一个ArgParser对象。
      */
     void reset();
-    bool isParsed() const { return m_isParsed; }
+    bool isParsed() const
+    {
+        return m_isParsed;
+    }
 
 private:
     bool doParse(std::stringstream &ss);
@@ -232,10 +238,15 @@ private:
     bool doParseOptions();
 
     template<typename T>
-    struct Data {
+    struct Data
+    {
         mutable T data; // 这里加mutable只是为了能在unordered_set中修改非键值
         mutable bool isValid = false; // 对于Flag是是否设置，对于Option是是否满足所有规则
-        Data(const T& value, bool set = false) : data(value), isValid(set) {}
+        Data(const T &value, bool set = false)
+            : data(value)
+            , isValid(set)
+        {
+        }
         bool operator==(const Data &other) const
         {
             return data == other.data;
@@ -251,12 +262,12 @@ private:
     std::unordered_map<std::string, std::any> m_options; // 命令行选项options（不允许重复）
 };
 
-inline std::ostream& operator<<(std::ostream &os, const Flag& flag)
+inline std::ostream &operator<<(std::ostream &os, const Flag &flag)
 {
     os << "Flag(" << flag.longKey() << ", " << flag.shortKey() << ": " << flag.help() << ")";
     return os;
 }
-inline std::ostream& operator<<(std::ostream &os, const Option& option)
+inline std::ostream &operator<<(std::ostream &os, const Option &option)
 {
     os << "Option(" << option.longKey() << ", " << option.shortKey() << ": " << option.help() << ", value: " << std::any_cast<char const *>(option.value()) << ")";
     return os;

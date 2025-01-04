@@ -145,7 +145,7 @@ uint64_t TimerManager::getNextTimer() const
 void TimerManager::listExpiredCallback(std::vector<Timer::TimeOutFunc> &fns)
 {
     uint64_t now_ms = utils::GetCurrentMS().count();
-    if(!hasTimer()) {
+    if (!hasTimer()) {
         return;
     }
     WriteScopedLock lock(&m_lock);

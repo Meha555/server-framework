@@ -9,13 +9,13 @@ parser.add_argument("--verbose", action="store_true", help="Print formatting inf
 args = parser.parse_args()
 
 # 定义要格式化的文件夹列表
-root_dirs = ["./include", "./source"]
+root_dirs = ["./src"]
 
 # 指定 clang-format 路径
 clang_format_path = "/usr/bin/clang-format"
 
 # 定义文件类型列表
-file_types = (".c", ".cpp", ".cc", ".h")
+file_suffix = (".c", ".cpp", ".cc", ".h", ".hpp", ".tpp")
 
 # 定义执行 clang-format 的函数
 def run_clang_format(file_list: list[str], verbose: bool =True):
@@ -32,7 +32,7 @@ def traverse_and_collect(root_dir: str):
     for root, dirs, files in os.walk(root_dir):
         for file in files:
             file_path = os.path.join(root, file)
-            if file_path.endswith(file_types):
+            if file_path.endswith(file_suffix):
                 file_list.append(file_path)
     if file_list:
         run_clang_format(file_list, args.verbose)

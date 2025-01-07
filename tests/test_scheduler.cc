@@ -1,9 +1,9 @@
-#include "log.h"
-#include "scheduler.h"
-#include "utils.h"
 #include <iostream>
-
 #include <gtest/gtest.h>
+
+#include "application.h"
+#include "utils/utils.h"
+#include "scheduler.h"
 
 using namespace meha;
 
@@ -38,6 +38,13 @@ TEST(TEST_CASE, test1)
 
 int main(int argc, char *argv[])
 {
-    testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    Application app;
+    return app.boot(BootArgs{
+        .argc = argc,
+        .argv = argv,
+        .configFile = "/home/will/Workspace/Devs/projects/server-framework/misc/config.yml",
+        .mainFunc = [](int argc, char **argv) -> int {
+            ::testing::InitGoogleTest(&argc, argv);
+            return RUN_ALL_TESTS();
+        }});
 }

@@ -69,6 +69,6 @@
 
 通过`YAML`配置文件可以配置系统的参数，当设置新值时，可以通过回调函数更新系统配置。举个实例讲述一下过程：
 
-1. 在main之前就通过`static _LogIniter _;` 添加了配置文件的根结点和通知变化的回调函数
+1. 在main之前就通过`static _LogIniter _;` 添加了配置文件的根结点和通知变化的回调函数，等待后续加载yml配置文件
 2. 使用`YAML::Node root = YAML::LoadFile("config/log.yml");` 加载文件
-3. 使用 `Config::LoadFromYAML(root)` 初始化配置模块，并会调用 `fromString()` 将解析出的 `node` 从 `string` 转化为相应的类型，其中会调用 `setValue` 设置参数值并且调用变化回调函数更新 `logger` 的参数。
+3. 使用 `Config::LoadFromYAML(root)` 初始化配置模块，并会调用 `fromString()` 将解析出的 `node` 从 `string` 转化为相应的类型，其中会调用 `setValue` 设置参数值并且调用之前注册好的变化回调函数更新 `logger` 的参数。

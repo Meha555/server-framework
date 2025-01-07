@@ -1,7 +1,9 @@
-#include "exception.h"
 #include <gtest/gtest.h>
 #include <iostream>
 #include <unistd.h>
+
+#include "utils/exception.h"
+#include "application.h"
 
 #define TEST_CASE ExceptionTest
 
@@ -40,6 +42,13 @@ TEST(TEST_CASE, printBackTrace)
 
 int main(int argc, char *argv[])
 {
-    testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    meha::Application app;
+    return app.boot(meha::BootArgs{
+        .argc = argc,
+        .argv = argv,
+        .configFile = "/home/will/Workspace/Devs/projects/server-framework/misc/config.yml",
+        .mainFunc = [](int argc, char **argv) -> int {
+            ::testing::InitGoogleTest(&argc, argv);
+            return RUN_ALL_TESTS();
+        }});
 }

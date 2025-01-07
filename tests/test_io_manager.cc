@@ -1,25 +1,29 @@
-#include "io_manager.h"
-#include "log.h"
 #include <arpa/inet.h>
 #include <cstring>
 #include <fcntl.h>
-#include <memory>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <gtest/gtest.h>
 
-meha::Logger::sptr g_logger = GET_ROOT_LOGGER();
+#include "application.h"
+#include "io_manager.h"
+#include "module/log.h"
+
+using namespace meha;
+
+#define TEST_CASE IOManagerTest
 
 void test_fiber()
 {
     for (int i = 0; i < 3; i++) {
-        LOG_INFO(g_logger, "hello test");
+        LOG_INFO(root, "hello test");
         // meha::Fiber::YieldToHold(); //FIXME
     }
 }
 
-void TEST_CreateIOManager()
+TEST(TEST_CASE, CreateIOManager)
 {
     char buffer[1024];
     const char msg[] = "懂的都懂";
@@ -43,40 +47,46 @@ void TEST_CreateIOManager()
         exit(1);
     } else {
         fcntl(sockfd, F_SETFL, O_NONBLOCK);
-        LOG_INFO(g_logger, "开始了开始了");
+        LOG_INFO(root, "开始了开始了");
         iom.subscribeEvent(sockfd, meha::FdContext::FdEvent::READ, [&]() {
             recv(sockfd, buffer, sizeof(buffer), 0);
-            LOG_FMT_INFO(g_logger, "服务端回应: %s", buffer);
+            LOG_FMT_INFO(root, "服务端回应: %s", buffer);
             iom.triggerAllEvents(sockfd);
             close(sockfd);
         });
         iom.subscribeEvent(sockfd, meha::FdContext::FdEvent::WRITE, [&]() {
             memcpy(buffer, msg, sizeof(buffer));
-            LOG_FMT_INFO(g_logger, "告诉服务端: %s", buffer);
+            LOG_FMT_INFO(root, "告诉服务端: %s", buffer);
             send(sockfd, buffer, sizeof(buffer), 0);
         });
     }
 }
 
-void TEST_timer()
+TEST(TEST_CASE, Timer)
 {
     meha::IOManager iom(2);
     // iom.schedule(test_fiber);
     iom.addTimer(
         1000, []() {
-            LOG_INFO(g_logger, "sleep(1000)");
+            LOG_INFO(root, "sleep(1000)");
         },
         true);
     iom.addTimer(
         500, []() {
-            LOG_INFO(g_logger, "sleep(500)");
+            LOG_INFO(root, "sleep(500)");
         },
         true);
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-    // TEST_CreateIOManager();
-    TEST_timer();
-    return 0;
+    Application app;
+    return app.boot(BootArgs{
+        .argc = argc,
+        .argv = argv,
+        .configFile = "/home/will/Workspace/Devs/projects/server-framework/misc/config.yml",
+        .mainFunc = [](int argc, char **argv) -> int {
+            ::testing::InitGoogleTest(&argc, argv);
+            return RUN_ALL_TESTS();
+        }});
 }

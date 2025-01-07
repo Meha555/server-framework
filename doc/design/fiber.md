@@ -115,10 +115,10 @@
 
 ```mermaid
 graph LR
-INIT -->|第一次调入执行| READY
-READY -->|resume:获得处理机调入执行| EXEC
-EXEC -->|yield:放弃处理机加入调度| READY
-EXEC -->|协程函数运行结束| TERM
+Initialized -->|第一次调入执行| Ready
+Ready -->|resume:获得处理机调入执行| Running
+Running -->|yield:放弃处理机加入调度| Ready
+Running -->|协程函数运行结束| Terminated
 ```
 
 - 创建态INIT：协程刚创建，还没有开始执行（只相当于标记位，调入会直接变到EXEC）

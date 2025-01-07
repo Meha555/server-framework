@@ -1,5 +1,6 @@
-#include <gtest/gtest.h>
+#include "application.h"
 #include "cmd.h"
+#include <gtest/gtest.h>
 
 using namespace meha;
 
@@ -46,7 +47,7 @@ TEST(TEST_CASE, ParseArgsSuccess)
     EXPECT_TRUE(parser.addOption(Option("--input", "-i", "Input file", true, "stdin")));
 
     const char *argv1[] = {"program", "--help", "-v", "--output=output.txt"};
-    EXPECT_TRUE(parser.parseArgs(4, const_cast<char**>(argv1))); // NOTE 注意这里必须使用char**而不能用char*[]，因为const_cast只能去掉指针或引用的const属性
+    EXPECT_TRUE(parser.parseArgs(4, const_cast<char **>(argv1))); // NOTE 注意这里必须使用char**而不能用char*[]，因为const_cast只能去掉指针或引用的const属性
     EXPECT_TRUE(parser.isFlagSet("--help"));
     EXPECT_TRUE(parser.isFlagSet("-h"));
     EXPECT_TRUE(parser.isFlagSet("--verbose"));
@@ -70,11 +71,18 @@ TEST(TEST_CASE, ParseArgsFailure)
     EXPECT_TRUE(parser.addOption(Option("--input", "-i", "Input file", true, "stdin")));
 
     const char *argv2[] = {"program", "--help"};
-    EXPECT_FALSE(parser.parseArgs(2, const_cast<char**>(argv2)));
+    EXPECT_FALSE(parser.parseArgs(2, const_cast<char **>(argv2)));
 }
 
 int main(int argc, char *argv[])
 {
-    testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    Application app;
+    return app.boot(BootArgs{
+        .argc = argc,
+        .argv = argv,
+        .configFile = "/home/will/Workspace/Devs/projects/server-framework/misc/config.yml",
+        .mainFunc = [](int argc, char **argv) -> int {
+            ::testing::InitGoogleTest(&argc, argv);
+            return RUN_ALL_TESTS();
+        }});
 }

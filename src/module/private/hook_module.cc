@@ -1,4 +1,3 @@
-#include "export.h"
 extern "C" {
 #include <dlfcn.h>
 }
@@ -48,7 +47,7 @@ HookModule::HookModule()
 bool HookModule::initInternel()
 {
     hook::SetHookEnable(false);
-    // 初始化被hook函数的原函数指针（通过dlsym）一定要是 RTLD_NEXT
+    // 初始化被hook函数的原函数指针（通过dlsym）使用 RTLD_NEXT 查找下一个实现，从而找回原函数
 #define TRY_LOAD_HOOK_FUNC(name)                               \
     name##_f = (name##_func)dlsym(RTLD_NEXT, #name);           \
     if (!name##_f) {                                           \
@@ -59,7 +58,7 @@ bool HookModule::initInternel()
     DEAL_FUNC(TRY_LOAD_HOOK_FUNC)
 #undef TRY_LOAD_HOOK_FUNC
     return true;
-    // 这块改成以反射形式设置为属性。这说明module必须有一个类来塞这些属性
+    // TODO 这块改成以反射Property的形式设置为属性。这说明module必须有一个类来塞这些属性
     // s_connect_timeout = g_tcp_connect_timeout->getValue();
     // g_tcp_connect_timeout->addListener(
     //     [](const int &old_value, const int &new_value) {

@@ -4,79 +4,83 @@
 #include "application.h"
 #include "io_manager.h"
 #include "module/log.h"
+#include "utils/utils.h"
 
 using namespace meha;
 
-#define TEST_CASE HookTest
-
-TEST(TEST_CASE, HookSleep)
+class HookTest : public ::testing::Test
 {
-    meha::IOManager iom(1);
-    LOG_DEBUG(root, "main() 开始");
-    for (int i = 0; i < 3; i++)
+protected:
+    void SetUp() override
     {
-        iom.schedule([]()
-                     {
-            LOG_DEBUG(root, "sleep(2) 开始");
-            sleep(2);
-            LOG_DEBUG(root, "sleep(2) 结束"); });
-        iom.schedule([]()
-                     {
-            LOG_DEBUG(root, "sleep(3) 开始");
-            sleep(3);
-            LOG_DEBUG(root, "sleep(3) 结束"); });
+        iom = new IOManager(1);
+    }
+    void TearDown() override
+    {
+        delete iom;
     }
 
-    LOG_DEBUG(root, "main() 结束");
+    IOManager *iom;
+};
+
+TEST_F(HookTest, HookSleep)
+{
+    LOG_FMT_INFO(root, "main() 开始 in fiber[%ld]", utils::GetFiberID());
+    for (int i = 0; i < 3; i++) {
+        iom->schedule([]() {
+            LOG_FMT_INFO(root, "sleep(1) 开始 in fiber[%ld]", utils::GetFiberID());
+            sleep(1);
+            LOG_FMT_INFO(root, "sleep(1) 结束 in fiber[%ld]", utils::GetFiberID());
+        });
+        iom->schedule([]() {
+            LOG_FMT_INFO(root, "sleep(3) 开始 in fiber[%ld]", utils::GetFiberID());
+            sleep(3);
+            LOG_FMT_INFO(root, "sleep(3) 结束 in fiber[%ld]", utils::GetFiberID());
+        });
+    }
+    LOG_FMT_INFO(root, "main() 结束 in fiber[%ld]", utils::GetFiberID());
 }
 
-TEST(TEST_CASE, HookSocket)
+TEST_F(HookTest, HookSocket)
 {
-    std::function<void()> test_sock = [] () {
+    LOG_FMT_INFO(root, "main() 开始 in fiber[%ld]", utils::GetFiberID());
+    iom->schedule([]() {
         int sockfd;
-        if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-        {
-            perror("啊这");
+        if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+            perror("socket");
             exit(1);
         }
-        sockaddr_in addr{};
+        struct sockaddr_in addr;
         memset(&addr, 0, sizeof(addr));
 
         addr.sin_family = AF_INET;
         addr.sin_port = htons(80);
-        inet_pton(AF_INET, "192.168.100.254", &addr.sin_addr.s_addr);
+        inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr.s_addr);
 
-        LOG_INFO(root, "开始连接");
-        if (connect(sockfd, (struct sockaddr*)(&addr), sizeof(struct sockaddr)) == -1)
-        {
-            perror("啊这");
+        LOG_FMT_INFO(root, "开始连接 in fiber[%ld]", utils::GetFiberID());
+        if (connect(sockfd, (struct sockaddr *)(&addr), sizeof(struct sockaddr)) == -1) {
+            perror("connect");
             exit(1);
         }
-        LOG_INFO(root, "连接成功");
+        LOG_FMT_INFO(root, "连接成功 in fiber[%ld]", utils::GetFiberID());
 
         const char data[] = "GET / HTTP/1.0\r\n\r\n";
-        auto rt = send(sockfd, data, sizeof(data), 0);
-        LOG_FMT_DEBUG(root, "sent() rt=%ld, errno=%d", rt, errno);
-        if (rt <= 0)
-        {
+        ssize_t nbytes = send(sockfd, data, sizeof(data), 0);
+        LOG_FMT_INFO(root, "发送出 nbytes=%ld, errno=%d (%s)", nbytes, errno, strerror(errno));
+        if (nbytes <= 0) {
             return;
         }
 
-        std::string buff;
-        buff.resize(4096);
-        rt = recv(sockfd, &buff[0], buff.size(), 0);
-        LOG_FMT_DEBUG(root, "recv() rt=%ld, errno=%d", rt, errno);
-        if (rt <= 0)
-        {
+        char buff[4096]; // 注意不要超出协程栈了
+        memset(buff, 0, sizeof(buff));
+        nbytes = recv(sockfd, buff, sizeof(buff), 0);
+        LOG_FMT_INFO(root, "接收到 nbytes=%ld, errno=%d (%s)", nbytes, errno, strerror(errno));
+        if (nbytes <= 0) {
             return;
         }
-        buff.resize(rt);
-        LOG_FMT_DEBUG(root, "buff:\n %s", buff.c_str());
-    };
-    LOG_DEBUG(root, "main() 开始");
-    meha::IOManager iom(1);
-    iom.schedule(test_sock);
-    LOG_DEBUG(root, "main() 结束");
+        LOG_FMT_INFO(root, "接收到的内容: %s", buff);
+    });
+    LOG_FMT_INFO(root, "main() 结束 in fiber[%ld]", utils::GetFiberID());
 }
 
 int main(int argc, char *argv[])

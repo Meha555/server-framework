@@ -63,7 +63,7 @@ static thread_local bool t_hook_enabled = false;
 //             return;
 //         is_inited = true;
 // #define TRY_LOAD_HOOK_FUNC(name) \
-//     name##_f = (name##_func)dlsym(RTLD_NEXT, #name); // 一定要是 RTLD_NEXT
+//     name##_f = (name##_func)dlsym(RTLD_NEXT, #name); // 使用 RTLD_NEXT 查找下一个实现，从而找回原函数
 //         // 利用宏获取指定的系统 api 的函数指针
 //         DEAL_FUNC(TRY_LOAD_HOOK_FUNC)
 // #undef TRY_LOAD_HOOK_FUNC

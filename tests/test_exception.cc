@@ -5,12 +5,14 @@
 #include "utils/exception.h"
 #include "application.h"
 
+using namespace meha;
+
 #define TEST_CASE ExceptionTest
 
 void fn(int count)
 {
     if (count <= 0) {
-        throw meha::Exception("Exception: fn 递归结束");
+        throw Exception("Exception: fn 递归结束");
     }
     fn(count - 1);
 }
@@ -18,7 +20,7 @@ void fn(int count)
 void throw_system_error()
 {
     if (write(0xffff, nullptr, 0) == -1) {
-        throw meha::SystemError("SystemError: 写入无法访问的地址");
+        throw SystemError("SystemError: 写入无法访问的地址");
     }
 }
 
@@ -26,14 +28,14 @@ TEST(TEST_CASE, printBackTrace)
 {
     try {
         fn(10);
-    } catch (const meha::Exception &e) {
+    } catch (const Exception &e) {
         std::cerr << e.what() << std::endl;
         std::cerr << e.stackTrace() << std::endl;
     }
 
     try {
         throw_system_error();
-    } catch (const meha::SystemError &e) {
+    } catch (const SystemError &e) {
         std::cerr << errno << std::endl;
         std::cerr << e.what() << std::endl;
         std::cerr << e.stackTrace() << std::endl;
@@ -42,8 +44,8 @@ TEST(TEST_CASE, printBackTrace)
 
 int main(int argc, char *argv[])
 {
-    meha::Application app;
-    return app.boot(meha::BootArgs{
+    Application app;
+    return app.boot(BootArgs{
         .argc = argc,
         .argv = argv,
         .configFile = "/home/will/Workspace/Devs/projects/server-framework/misc/config.yml",

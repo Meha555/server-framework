@@ -10,7 +10,7 @@
 #include <unistd.h>
 
 #include "address.h"
-#include "byte_order.h"
+#include "byteorder.h"
 #include "macro.h"
 #include "module/log.h"
 

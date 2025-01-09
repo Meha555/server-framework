@@ -13,18 +13,21 @@ namespace meha::utils
 
 // @brief 将8字节整数进行字节序转换
 template<typename Integer>
-inline auto ByteSwap(Integer num) // REVIEW 这里auto会推导为什么？
+inline std::enable_if_t<std::is_integral_v<Integer>, Integer>
+ByteSwap(Integer num)
 {
-    static_assert(std::is_integral_v<Integer>, "Integer must be integral type.");
+    // 函数不允许偏特化，我又不想写重载版本，只好用编译期if了
     if constexpr (sizeof(Integer) == sizeof(uint64_t))
         return static_cast<Integer>(bswap_64(num));
     else if constexpr (sizeof(Integer) == sizeof(uint32_t))
         return static_cast<Integer>(bswap_32(num));
     else if constexpr (sizeof(Integer) == sizeof(uint16_t))
         return static_cast<Integer>(bswap_16(num));
+    else if constexpr (sizeof(Integer) == sizeof(uint8_t))
+        return static_cast<Integer>(num);
     else {
         errno = EOVERFLOW;
-        throw std::out_of_range("integer size is not supported.");
+        throw std::domain_error("integer size is not supported.");
     }
 }
 

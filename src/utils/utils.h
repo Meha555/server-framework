@@ -39,6 +39,16 @@ std::chrono::microseconds GetCurrentUS();
 
 std::chrono::nanoseconds GetCurrentNS();
 
+/**
+ * @brief 日期时间转字符串
+ */
+std::string Time2Str(time_t ts = time(0), const std::string &format = "%Y-%m-%d %H:%M:%S");
+
+/**
+ * @brief 字符串转日期时间
+ */
+time_t Str2Time(const char *str, const char *format = "%Y-%m-%d %H:%M:%S");
+
 template<typename Callback>
 struct ScopeGuard
 {

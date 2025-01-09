@@ -10,7 +10,9 @@ using namespace meha;
 void fn1()
 {
     for (int i = 0; i < 3; i++) {
-      LOG(root, INFO) << "任务fn1 fid= " << Fiber::GetCurrentID();
+        LOG(root, INFO) << "任务fn1 fid= " << Fiber::GetCurrentID() << " to yeild";
+        Fiber::Yield();
+        LOG(root, INFO) << "任务fn1 fid= " << Fiber::GetCurrentID() << " resume back";
     }
 }
 

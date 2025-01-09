@@ -1,6 +1,6 @@
 #include "config.h"
-#include "module/private/modules.h"
 #include "module/log.h"
+#include "module/private/modules.h"
 
 namespace meha::internal
 {

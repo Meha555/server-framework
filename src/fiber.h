@@ -23,6 +23,7 @@ class Scheduler;
 class Fiber : public utils::NonCopyable, public std::enable_shared_from_this<Fiber>
 {
     friend class Scheduler;
+
 public:
     MEHA_PTR_INSIDE_CLASS(Fiber)
     using FiberFunc = std::function<void()>;
@@ -99,9 +100,9 @@ private:
     // // 换出当前协程，换入new_fiber
     // void swapInto(Fiber *new_fiber);
     // 换出from协程，换入to协程
-    static void SwapFromTo(Fiber* from, Fiber* to);
+    static void SwapFromTo(Fiber *from, Fiber *to);
     // 设置当前执行的协程
-    static void SetCurrent(Fiber* fiber);
+    static void SetCurrent(Fiber *fiber);
     // 协程入口函数（makecontext的第二个参数）
     static void Run();
 

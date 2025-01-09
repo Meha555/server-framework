@@ -21,7 +21,7 @@ static std::atomic_uint64_t s_fiber_id{0};
 static std::atomic_uint64_t s_fiber_count{0};
 
 // 当前线程正在执行的协程（用于执行子协程）
-static thread_local Fiber* t_fiber{nullptr};
+static thread_local Fiber *t_fiber{nullptr};
 // 当前线程的主协程（用于切回主协程）
 static thread_local Fiber::sptr t_master_fiber{nullptr};
 
@@ -195,7 +195,7 @@ void Fiber::yield()
     SwapFromTo(this, m_scheduled ? Scheduler::GetSchedulerFiber().get() : t_master_fiber.get());
 }
 
-void Fiber::SwapFromTo(Fiber* from, Fiber* to)
+void Fiber::SwapFromTo(Fiber *from, Fiber *to)
 {
     if (from == to) {
         LOG_FMT_WARN(core, "同一个协程[%lu]无需换入换出", from->m_fid);
@@ -220,7 +220,7 @@ void Fiber::Init()
     }
 }
 
-void Fiber::SetCurrent(Fiber* fiber)
+void Fiber::SetCurrent(Fiber *fiber)
 {
     t_fiber = fiber;
     if (fiber) {

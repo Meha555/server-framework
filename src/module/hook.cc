@@ -6,7 +6,6 @@
 #include "io_manager.h"
 #include "log.h"
 
-
 namespace meha
 {
 
@@ -225,12 +224,12 @@ int ConnectWithTimeout(int sockfd, const struct sockaddr *addr,
                     return;
                 }
                 t->timeouted = ETIMEDOUT;
-                iom->triggerEvent(sockfd, meha::FdContext::FdEvent::WRITE);
+                iom->triggerEvent(sockfd, meha::FdContext::FdEvent::Write);
             },
             weak_timer_info);
     }
     // TODO 下面的逻辑要看一下
-    int rt = iom->subscribeEvent(sockfd, meha::FdContext::FdEvent::WRITE);
+    int rt = iom->subscribeEvent(sockfd, meha::FdContext::FdEvent::Write);
     if (rt == 0) {
         meha::Fiber::Yield();
         if (timer) {
@@ -353,7 +352,7 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
     int fd = meha::hook::doIO(sockfd, accept_f, "accept",
-                              meha::FdContext::FdEvent::READ,
+                              meha::FdContext::FdEvent::Read,
                               meha::FileDescriptor::RecvTimeout, // REVIEW 这里的recvtimout和sendtimeout是怎么确定的？
                               addr, addrlen);
     meha::FileDescriptorManager::Instance()->fetch(fd, true);
@@ -362,61 +361,61 @@ int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 
 ssize_t read(int fd, void *buf, size_t count)
 {
-    return meha::hook::doIO(fd, read_f, "read", meha::FdContext::FdEvent::READ, meha::FileDescriptor::RecvTimeout, buf, count);
+    return meha::hook::doIO(fd, read_f, "read", meha::FdContext::FdEvent::Read, meha::FileDescriptor::RecvTimeout, buf, count);
 }
 
 ssize_t readv(int fd, const struct iovec *iov, int iovcnt)
 {
-    return meha::hook::doIO(fd, readv_f, "readv", meha::FdContext::FdEvent::READ, meha::FileDescriptor::RecvTimeout, iov, iovcnt);
+    return meha::hook::doIO(fd, readv_f, "readv", meha::FdContext::FdEvent::Read, meha::FileDescriptor::RecvTimeout, iov, iovcnt);
 }
 
 ssize_t recv(int sockfd, void *buf, size_t len, int flags)
 {
-    return meha::hook::doIO(sockfd, recv_f, "recv", meha::FdContext::FdEvent::READ, meha::FileDescriptor::RecvTimeout, buf,
+    return meha::hook::doIO(sockfd, recv_f, "recv", meha::FdContext::FdEvent::Read, meha::FileDescriptor::RecvTimeout, buf,
                             len, flags);
 }
 
 ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags,
                  struct sockaddr *src_addr, socklen_t *addrlen)
 {
-    return meha::hook::doIO(sockfd, recvfrom_f, "recvfrom", meha::FdContext::FdEvent::READ, meha::FileDescriptor::RecvTimeout,
+    return meha::hook::doIO(sockfd, recvfrom_f, "recvfrom", meha::FdContext::FdEvent::Read, meha::FileDescriptor::RecvTimeout,
                             buf, len, flags, src_addr, addrlen);
 }
 
 ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags)
 {
-    return meha::hook::doIO(sockfd, recvmsg_f, "recvfrom", meha::FdContext::FdEvent::READ, meha::FileDescriptor::RecvTimeout,
+    return meha::hook::doIO(sockfd, recvmsg_f, "recvfrom", meha::FdContext::FdEvent::Read, meha::FileDescriptor::RecvTimeout,
                             msg, flags);
 }
 
 ssize_t write(int fd, const void *buf, size_t count)
 {
-    return meha::hook::doIO(fd, write_f, "write", meha::FdContext::FdEvent::WRITE, meha::FileDescriptor::SendTimeout, buf,
+    return meha::hook::doIO(fd, write_f, "write", meha::FdContext::FdEvent::Write, meha::FileDescriptor::SendTimeout, buf,
                             count);
 }
 
 ssize_t writev(int fd, const struct iovec *iov, int iovcnt)
 {
-    return meha::hook::doIO(fd, writev_f, "writev_f", meha::FdContext::FdEvent::WRITE, meha::FileDescriptor::SendTimeout, iov,
+    return meha::hook::doIO(fd, writev_f, "writev_f", meha::FdContext::FdEvent::Write, meha::FileDescriptor::SendTimeout, iov,
                             iovcnt);
 }
 
 ssize_t send(int sockfd, const void *buf, size_t len, int flags)
 {
-    return meha::hook::doIO(sockfd, send_f, "send", meha::FdContext::FdEvent::WRITE, meha::FileDescriptor::SendTimeout, buf,
+    return meha::hook::doIO(sockfd, send_f, "send", meha::FdContext::FdEvent::Write, meha::FileDescriptor::SendTimeout, buf,
                             len, flags);
 }
 
 ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,
                const struct sockaddr *dest_addr, socklen_t addrlen)
 {
-    return meha::hook::doIO(sockfd, sendto_f, "sendto", meha::FdContext::FdEvent::WRITE, meha::FileDescriptor::SendTimeout,
+    return meha::hook::doIO(sockfd, sendto_f, "sendto", meha::FdContext::FdEvent::Write, meha::FileDescriptor::SendTimeout,
                             buf, len, flags, dest_addr, addrlen);
 }
 
 ssize_t sendmsg(int sockfd, const struct msghdr *msg, int flags)
 {
-    return meha::hook::doIO(sockfd, sendmsg_f, "sendmsg", meha::FdContext::FdEvent::WRITE, meha::FileDescriptor::SendTimeout,
+    return meha::hook::doIO(sockfd, sendmsg_f, "sendmsg", meha::FdContext::FdEvent::Write, meha::FileDescriptor::SendTimeout,
                             msg, flags);
 }
 

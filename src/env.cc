@@ -35,7 +35,7 @@ bool Env::init(int argc, char **argv)
                 now_key = argv[i] + 1;
             } else {
                 LOG(core, ERROR) << "invalid arg idx=" << i
-                                         << " val=" << argv[i];
+                                 << " val=" << argv[i];
                 return false;
             }
         } else {
@@ -44,7 +44,7 @@ bool Env::init(int argc, char **argv)
                 now_key = nullptr;
             } else {
                 LOG(core, ERROR) << "invalid arg idx=" << i
-                                         << " val=" << argv[i];
+                                 << " val=" << argv[i];
                 return false;
             }
         }

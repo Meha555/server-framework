@@ -83,7 +83,7 @@ private:
             , iter(iter)
         {
         }
-        Task& operator=(const Task &rhs)
+        Task &operator=(const Task &rhs)
         {
             if (this != &rhs) {
                 iter = rhs.iter;
@@ -131,7 +131,7 @@ public:
      */
     void stop();
     virtual bool isStoped() const;
-    bool hasIdleThread() const
+    bool hasIdler() const
     {
         return m_idlers > 0;
     }

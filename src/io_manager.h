@@ -1,12 +1,11 @@
 #pragma once
 
-#include "scheduler.h"
-#include "timer.h"
-#include "utils/thread.h"
 #include <atomic>
-#include <functional>
 #include <memory>
 #include <variant>
+
+#include "scheduler.h"
+#include "timer.h"
 
 namespace meha
 {
@@ -20,9 +19,9 @@ class FdContext
     friend class IOManager;
 
 public:
-    enum FdEvent { NONE = 0x0,
-                   READ = 0x1,
-                   WRITE = 0x4 };
+    enum FdEvent { None = 0x0,
+                   Read = 0x1,
+                   Write = 0x4 };
     struct EventHandler
     {
         Scheduler::sptr scheduler = nullptr; // 指定处理该事件的调度器
@@ -53,7 +52,7 @@ public:
     // 取消监听指定的事件
     void delEvent(FdEvent event);
     // 触发事件，然后删除该事件相关的信息
-    void triggerEvent(FdEvent event);
+    void emitEvent(FdEvent event);
 
     // 获取指定事件的处理器
     EventHandler &getHandler(FdEvent event);
@@ -65,9 +64,9 @@ public:
 private:
     mutable Mutex m_mutex;
     int m_fd; // 要监听的文件描述符
-    FdEvent m_events = FdEvent::NONE; // 要监听的事件掩码集
-    EventHandler m_read_handler; // 读就绪事件处理器
-    EventHandler m_write_handler; // 写就绪事件处理器
+    FdEvent m_events = FdEvent::None; // 要监听的事件掩码集
+    EventHandler m_readHandler; // 读就绪事件处理器
+    EventHandler m_writeHandler; // 写就绪事件处理器
 };
 
 /**
@@ -84,8 +83,7 @@ public:
     explicit IOManager(size_t pool_size, bool use_caller = false);
     ~IOManager() override;
 
-    // thread-safe 给指定的 fd 增加事件监听，当 callback 是 nullptr
-    // 时，将当前上下文转换为协程，并作为事件回调使用
+    // thread-safe 给指定的 fd 增加事件监听，当 callback 是 nullptr 时，将当前上下文转换为协程，并作为事件回调使用
     bool subscribeEvent(int fd, FDEvent event, Fiber::FiberFunc callback = nullptr);
     // thread-safe 给指定的 fd 移除指定的事件监听
     bool unsubscribeEvent(int fd, FDEvent event);
@@ -94,7 +92,6 @@ public:
     // thread-safe 立即触发指定 fd 的所有事件回调，然后移除所有的事件
     bool triggerAllEvents(int fd);
 
-public:
     static IOManager::sptr GetCurrent();
 
 protected:
@@ -106,10 +103,10 @@ protected:
     void onTimerInsertedAtFront() override;
 
 private:
-    int m_epoll_fd = 0;
-    int m_tickle_fds[2]{0, 0}; // 主线程给子线程发消息用的管道（0读1写）
-    std::atomic_size_t m_pending_event_count{0}; // 等待执行的IO事件的数量
+    int m_epollFd = 0;
+    int m_ticklePipe[2]{0, 0}; // 主协程给子协程发消息用的管道（0读1写）
+    std::atomic_size_t m_pendingEvents{0}; // 等待执行的IO事件的数量
+    std::vector<std::unique_ptr<FdContext>> m_fdCtxs{}; // FDContext 的对象池，下标对应 fd id。这个用map会不会更好，为啥需要像select那样准备一大串fd呢？或者说这里有必要池化吗？
     mutable RWMutex m_mutex;
-    std::vector<std::unique_ptr<FdContext>> m_fdctxs{}; // FDContext 的对象池，下标对应 fd id。这个用map会不会更好，为啥需要像select那样准备一大串fd呢？或者说这里有必要池化吗？
 };
 } // namespace meha

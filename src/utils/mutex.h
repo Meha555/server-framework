@@ -62,7 +62,7 @@ public:
         : m_mutex(mutex)
         , m_locked(true)
     {
-        m_mutex->lock();
+        lock();
     }
 
     ~ScopedLockImpl()
@@ -106,7 +106,7 @@ public:
         : m_mutex(mutex)
         , m_locked(true)
     {
-        m_mutex->readLock();
+        lock();
     }
 
     ~ReadScopedLockImpl()
@@ -148,7 +148,7 @@ public:
         : m_mutex(mutex)
         , m_locked(true)
     {
-        m_mutex->writeLock();
+        lock();
     }
 
     ~WriteScopedLockImpl()

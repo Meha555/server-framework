@@ -14,7 +14,6 @@
 #include "macro.h"
 #include "module/log.h"
 
-
 /*
 NOTE 不要随便把函数中的临时变量搞成static的，这样容易导致函数不可重入
 如下面的stringstream、sockaddr_in等，如果变成static的，那么一旦Address重置了，这些变量也需要重置，

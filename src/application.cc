@@ -1,10 +1,7 @@
-// clang-format off
-#include "macro.h"
-// clang-format on
 #include "application.h"
 #include "env.h"
-#include "module/private/modules.h"
 #include "module/private/module_initer.h"
+#include "module/private/modules.h"
 #include <fstream>
 
 namespace meha
@@ -39,13 +36,10 @@ void Application::drawBanner() const
     if (ifs.is_open()) // 使用 is_open() 检查文件是否成功打开
     {
         std::string line;
-        while (std::getline(ifs, line))
-        {
+        while (std::getline(ifs, line)) {
             std::cout << line << std::endl;
         }
-    }
-    else
-    {
+    } else {
         std::cerr << "Failed to open banner.txt" << std::endl; // 添加文件打开失败的错误处理
     }
     std::cout << "=============================================================\n";

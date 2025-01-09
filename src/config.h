@@ -294,7 +294,7 @@ public:
         if (name.find_first_not_of("qwertyuiopasdfghjklzxcvbnm0123456789._") != std::string::npos) {
             // 开头前缀不是这些字符
             LOG_FMT_ERROR(root, "Congif::Lookup exception name=%s"
-                                             "参数只能以字母数字点或下划线开头",
+                                "参数只能以字母数字点或下划线开头",
                           name.c_str());
             throw std::invalid_argument(name);
         }

@@ -15,8 +15,7 @@ static Mutex s_mutex;
 
 void fn_1()
 {
-    auto thread = Thread::GetCurrent().lock();
-    LOG_FMT_DEBUG(root, "当前线程 id = %d/%d", thread->tid(), cnt);
+    LOG_FMT_DEBUG(root, "当前线程 id = %d/%d", Thread::GetCurrent()->tid(), cnt);
 }
 
 void fn_2()

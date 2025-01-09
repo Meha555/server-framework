@@ -4,6 +4,7 @@
 #     level:     [日志等级，可选类型为 0: unknow, 1: trace, 2: debug, 3: info, 4: warn, 5: error, 6: fatal]
 #     pattern:   [日志打印格式，支持以下特殊符号：
 #                   %p    日志等级
+#                   %c    日志类别
 #                   %f    打印日志所在的源文件名
 #                   %l    打印日志所在的行号
 #                   %d    打印日志时的时间
@@ -23,7 +24,7 @@
 log:
   - category: core
     level: 1
-    pattern: "[%d] [%p] [%f:%l]%T%m%n"
+    pattern: "[%d] [%c][%p] [%f:%l]%T%m%n"
     appender:
       - type: 0
       - type: 1
@@ -31,7 +32,7 @@ log:
         file: /var/log/server-framework/core.log
   - category: root
     level: 2
-    pattern: "[%d] [%p] [%f]%T%m%n"
+    pattern: "[%d] [%c][%p] [%f]%T%m%n"
     appender:
       - type: 0
       - type: 1

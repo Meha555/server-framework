@@ -12,21 +12,20 @@ namespace meha
 {
 
 // 当前线程的 Thread 实例的指针，如果不是我们用Thread创建线程，这个指针变量就是初值nullptr
-static thread_local Thread::wptr t_this_thread{}; // 这个指针用什么智能指针？weakptr支持不用的时候不影响引用计数，用的时候再取出shared_ptr随用随放，所以粒度控制的很小
+static thread_local Thread::sptr t_this_thread{nullptr}; // 这个指针用什么智能指针？weakptr支持不用的时候不影响引用计数，用的时候再取出shared_ptr随用随放，所以粒度控制的很小
 
 void Thread::ThreadClosure::runInThread()
 {
     t_this_thread = static_cast<Thread *>(user_data)->shared_from_this();
-    auto this_thread = t_this_thread.lock();
 
     // REVIEW 这里针对线程函数使用swap，目的是防止线程函数ThreadFunc中使用了智能指针导致的一些引用计数问题
     ThreadFunc worker;
-    worker.swap(this_thread->m_callback);
+    worker.swap(t_this_thread->m_callback);
 
     try {
-        this_thread->m_status = Status::Running;
-        this_thread->m_tid = utils::GetThreadID();
-        this_thread->m_sem.post(); // 启动被暂停的主线程，开始并发执行
+        t_this_thread->m_status = Status::Running;
+        t_this_thread->m_tid = utils::GetThreadID();
+        t_this_thread->m_sem.post(); // 启动被暂停的主线程，开始并发执行
         worker(); // 执行工作函数
     } catch (const std::exception &e) {
         throw RuntimeError(fmt::format("线程[TID:{}] 执行异常, 原因：{}", utils::GetThreadID(), e.what()));
@@ -121,7 +120,7 @@ void *Thread::Run(void *args)
     return EXIT_SUCCESS;
 }
 
-Thread::wptr Thread::GetCurrent()
+Thread::sptr Thread::GetCurrent()
 {
     return t_this_thread;
 }

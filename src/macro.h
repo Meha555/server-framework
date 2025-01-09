@@ -25,7 +25,7 @@
 #define ASSERT(cond)                                                               \
     do {                                                                           \
         if (!(cond)) {                                                             \
-            LOG_FMT_FATAL(root,                                       \
+            LOG_FMT_FATAL(core,                                                    \
                           "Assertion: " #cond "\nSysErr: %s (%u)\nBacktrace:\n%s", \
                           ::strerror(errno),                                       \
                           errno,                                                   \
@@ -42,7 +42,7 @@
 #define ASSERT_FMT(cond, fmt, args...)                                                      \
     do {                                                                                    \
         if (!(cond)) {                                                                      \
-            LOG_FMT_FATAL(root,                                                \
+            LOG_FMT_FATAL(core,                                                             \
                           "Assertion: " #cond ", " fmt "\nSysErr: %s (%u)\nBacktrace:\n%s", \
                           ##args,                                                           \
                           ::strerror(errno),                                                \

@@ -23,7 +23,6 @@ class Scheduler;
 class Fiber : public utils::NonCopyable, public std::enable_shared_from_this<Fiber>
 {
     friend class Scheduler;
-
 public:
     MEHA_PTR_INSIDE_CLASS(Fiber)
     using FiberFunc = std::function<void()>;
@@ -79,7 +78,11 @@ public:
         return m_status;
     }
 
-    bool isFinished() const noexcept
+    bool isRunning() const noexcept
+    {
+        return m_status == Running;
+    }
+    bool isTerminated() const noexcept
     {
         return m_status == Terminated;
     }
@@ -114,10 +117,10 @@ public:
     // 获取当前协程状态
     static std::optional<Status> GetCurrentState();
     // 获取存在的协程数量
-    static uint32_t TotalFibers();
+    static uint64_t TotalFibers();
 
 private:
-    uint32_t m_fid; // 协程 id
+    uint64_t m_fid; // 协程 id
     uint64_t m_stack_size; // 协程栈大小
     Status m_status; // 协程状态
     ucontext_t m_ctx; // 当前协程上下文

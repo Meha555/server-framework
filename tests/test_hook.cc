@@ -9,7 +9,7 @@ using namespace meha;
 
 #define TEST_CASE HookTest
 
-TEST(TEST_CASE, sleep)
+TEST(TEST_CASE, HookSleep)
 {
     meha::IOManager iom(1);
     LOG_DEBUG(root, "main() 开始");
@@ -30,7 +30,7 @@ TEST(TEST_CASE, sleep)
     LOG_DEBUG(root, "main() 结束");
 }
 
-TEST(TEST_CASE, sock)
+TEST(TEST_CASE, HookSocket)
 {
     std::function<void()> test_sock = [] () {
         int sockfd;

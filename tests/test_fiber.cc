@@ -66,7 +66,7 @@ void test_fiber_normal(bool single_thread)
         ::sleep(2);
 
         fiber->resume();
-        EXPECT_TRUE(fiber->isFinished());
+        EXPECT_TRUE(fiber->isTerminated());
     }
 
     EXPECT_HELPER(1, 0, Running);

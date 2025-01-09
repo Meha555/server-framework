@@ -61,7 +61,7 @@ public:
     static void *Run(void *arg);
 
     // 获取当前线程指针
-    static Thread::wptr GetCurrent(); // FIXME 这里应该返回什么指针更好？
+    static Thread::sptr GetCurrent(); // FIXME 这里应该返回什么指针更好？
 
 private:
     // linux线程id

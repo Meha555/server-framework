@@ -63,7 +63,7 @@ void FiberConditionVariable::wait(SpinLock &mutex)
 {
     ASSERT(mutex.isLocked());
     mutex.unLock();
-    utils::GenScopeGuard([&mutex] {
+    auto cleanup = utils::GenScopeGuard([&mutex] {
         mutex.lock();
     });
     if (m_cond) {
@@ -78,7 +78,7 @@ bool FiberConditionVariable::timeWait(SpinLock &mutex, uint32_t sec)
 {
     ASSERT(mutex.isLocked());
     mutex.unLock();
-    utils::GenScopeGuard([&mutex] {
+    auto cleanup = utils::GenScopeGuard([&mutex] {
         mutex.lock();
     });
     if (m_cond) {

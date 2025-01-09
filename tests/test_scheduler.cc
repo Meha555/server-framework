@@ -1,36 +1,47 @@
-#include <iostream>
 #include <gtest/gtest.h>
 
 #include "application.h"
-#include "utils/utils.h"
 #include "scheduler.h"
 
 using namespace meha;
 
-#define TEST_CASE Scheduler
+#define TEST_CASE SchedulerTest
 
 void fn1()
 {
     for (int i = 0; i < 3; i++) {
-      std::cout << "啊啊啊啊id= " << utils::GetFiberID() << std::endl;
+      LOG(root, INFO) << "任务fn1 fid= " << Fiber::GetCurrentID();
     }
 }
 
 void fn2()
 {
     for (int i = 0; i < 3; i++) {
-        std::cout << "哦哦哦哦id= " << utils::GetFiberID() << std::endl;
+        LOG(root, INFO) << "任务fn2 fid= " << Fiber::GetCurrentID();
     }
 }
 
-TEST(TEST_CASE, test1)
+TEST(TEST_CASE, ScheduleTaskUseCaller)
 {
-    Scheduler sc(1, true);
+    Scheduler sc(3, true);
     sc.start();
     // 此时可以添加任务执行了
     sc.schedule(fn1);
-    for (int i = 0; i < 3; i++) {
-        sc.schedule(std::bind([](int i) { std::cout << ">>>任务 " << i << std::endl; }, i));
+    for (int i = 0; i < 5; i++) {
+        sc.schedule(std::bind([](int i) { LOG(root, INFO) << "添加 任务" << i; }, i));
+    }
+    sc.schedule(fn2);
+    sc.stop();
+}
+
+TEST(TEST_CASE, ScheduleTaskNotUseCaller)
+{
+    Scheduler sc(3, false);
+    sc.start();
+    // 此时可以添加任务执行了
+    sc.schedule(fn1);
+    for (int i = 0; i < 5; i++) {
+        sc.schedule(std::bind([](int i) { LOG(root, INFO) << ">>> 任务 " << i; }, i));
     }
     sc.schedule(fn2);
     sc.stop();

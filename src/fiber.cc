@@ -21,7 +21,7 @@ static std::atomic_uint64_t s_fiber_id{0};
 static std::atomic_uint64_t s_fiber_count{0};
 
 // 当前线程正在执行的协程（用于执行子协程）
-static thread_local Fiber* t_current_fiber{nullptr};
+static thread_local Fiber* t_fiber{nullptr};
 // 当前线程的主协程（用于切回主协程）
 static thread_local Fiber::sptr t_master_fiber{nullptr};
 
@@ -99,7 +99,7 @@ Fiber::Fiber(FiberFunc callback, bool scheduled, size_t stack_size)
     makecontext(&m_ctx, &Fiber::Run, 0);
 
     ++s_fiber_count;
-    LOG_FMT_TRACE(core, "创建子协程[%d]", m_fid);
+    LOG_FMT_TRACE(core, "创建子协程[%lu]", m_fid);
 }
 
 Fiber::Fiber(Fiber &&rhs) noexcept
@@ -119,7 +119,7 @@ Fiber::Fiber(Fiber &&rhs) noexcept
     rhs.m_ctx.uc_link = nullptr;
     rhs.m_ctx.uc_stack.ss_sp = nullptr;
     rhs.m_ctx.uc_stack.ss_size = 0;
-    LOG_FMT_TRACE(core, "移动子协程[%d]", m_fid);
+    LOG_FMT_TRACE(core, "移动子协程[%lu]", m_fid);
 }
 
 Fiber &Fiber::operator=(Fiber &&rhs) noexcept
@@ -142,20 +142,20 @@ Fiber &Fiber::operator=(Fiber &&rhs) noexcept
         rhs.m_ctx.uc_stack.ss_sp = nullptr;
         rhs.m_ctx.uc_stack.ss_size = 0;
     }
-    LOG_FMT_TRACE(core, "移动子协程[%d]", m_fid);
+    LOG_FMT_TRACE(core, "移动子协程[%lu]", m_fid);
     return *this;
 }
 
 Fiber::~Fiber()
 {
-    LOG_FMT_TRACE(core, "析构协程[%d]", m_fid);
+    LOG_FMT_TRACE(core, "析构协程[%lu]", m_fid);
     if (m_stack) { // 存在栈，说明是子协程，释放申请的协程栈空间
         ASSERT(m_status == Initialized || m_status == Terminated);
         StackAllocator::Dealloc(m_stack, m_stack_size);
     } else { // 否则是主协程
         ASSERT(m_status == Running);
         t_master_fiber = nullptr;
-        if (t_current_fiber == this) {
+        if (t_fiber == this) {
             SetCurrent(nullptr);
         }
     }
@@ -197,6 +197,10 @@ void Fiber::yield()
 
 void Fiber::SwapFromTo(Fiber* from, Fiber* to)
 {
+    if (from == to) {
+        LOG_FMT_WARN(core, "同一个协程[%lu]无需换入换出", from->m_fid);
+        return;
+    }
     ASSERT(from);
     ASSERT(to);
     SetCurrent(to);
@@ -218,7 +222,7 @@ void Fiber::Init()
 
 void Fiber::SetCurrent(Fiber* fiber)
 {
-    t_current_fiber = fiber;
+    t_fiber = fiber;
     if (fiber) {
         fiber->m_status = Running;
     }
@@ -227,39 +231,39 @@ void Fiber::SetCurrent(Fiber* fiber)
 Fiber::sptr Fiber::GetCurrent()
 {
     // 当前线程还没有创建协程
-    if (!t_current_fiber) {
+    if (!t_fiber) {
         Init();
     }
-    return t_current_fiber->shared_from_this();
+    return t_fiber->shared_from_this();
 }
 
-uint32_t Fiber::TotalFibers()
+uint64_t Fiber::TotalFibers()
 {
     return s_fiber_count;
 }
 
 int64_t Fiber::GetCurrentID()
 {
-    if (t_current_fiber) {
-        return t_current_fiber->m_fid;
+    if (t_fiber) {
+        return t_fiber->m_fid;
     }
     return -1;
 }
 
 std::optional<Fiber::Status> Fiber::GetCurrentState()
 {
-    if (t_current_fiber) {
-        return t_current_fiber->m_status;
+    if (t_fiber) {
+        return t_fiber->m_status;
     }
     return std::nullopt;
 }
 
 void Fiber::Yield()
 {
-    if (!t_current_fiber) {
+    if (!t_fiber) {
         return;
     }
-    t_current_fiber->yield();
+    t_fiber->yield();
 }
 
 void Fiber::Run()

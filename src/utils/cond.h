@@ -23,12 +23,37 @@ class ConditionVariable
 public:
     explicit ConditionVariable();
     ~ConditionVariable();
-    void wait();
+
+    template <typename Predicate>
+    void wait(Predicate p)
+    {
+        pthread_mutex_lock(&m_mutex);
+        while (!p()) {
+            pthread_cond_wait(&m_cond, &m_mutex);
+        }
+        pthread_mutex_unlock(&m_mutex);
+    }
     /**
      * @return true 条件变量触发了
      * @return false 条件变量没有触发
      */
-    bool timeWait(uint32_t sec);
+    template <typename Predicate>
+    bool timeWait(uint32_t sec, Predicate p)
+    {
+        struct timespec absts;
+        clock_gettime(CLOCK_MONOTONIC, &absts); // 需要是绝对时间
+        absts.tv_sec += sec;
+        pthread_mutex_lock(&m_mutex);
+        int ret = 0;
+        while (!p()) {
+            ret = pthread_cond_timedwait(&m_cond, &m_mutex, &absts);
+            if (ret != 0 && errno == ETIMEDOUT) {
+                break;
+            }
+        }
+        pthread_mutex_unlock(&m_mutex);
+        return ret == 0;
+    }
 
     void signal();
     void broadcast();

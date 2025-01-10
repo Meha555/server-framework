@@ -15,25 +15,14 @@ namespace meha
 
 ConditionVariable::ConditionVariable()
 {
+    __THROW_HELPER(pthread_mutex_init(&m_mutex, nullptr) == 0, SystemError, "pthread_mutex_init failed");
     __THROW_HELPER(pthread_cond_init(&m_cond, nullptr) == 0, SystemError, "pthread_cond_init failed");
 }
 
 ConditionVariable::~ConditionVariable()
 {
+    pthread_mutex_destroy(&m_mutex);
     pthread_cond_destroy(&m_cond);
-}
-
-void ConditionVariable::wait()
-{
-    __THROW_HELPER(pthread_cond_wait(&m_cond, &m_mutex) == 0, SystemError, "pthread_cond_wait failed");
-}
-
-bool ConditionVariable::timeWait(uint32_t sec)
-{
-    struct timespec absts;
-    clock_gettime(CLOCK_MONOTONIC, &absts); // 需要是绝对时间
-    absts.tv_sec += sec;
-    return pthread_cond_timedwait(&m_cond, &m_mutex, &absts) == 0;
 }
 
 void ConditionVariable::signal()

@@ -49,10 +49,10 @@ TEST(TEST_CASE, MemorySerialization)
     XX(int64_t, 100, writeFixedInt<64>, readFixedInt<64>, 1);
     XX(uint64_t, 100, writeFixedUint<64>, readFixedUint<64>, 1);
 
-    XX(int32_t, 100, writeVariantInt<32>, readVariantInt<32>, 1);
-    XX(uint32_t, 100, writeVariantUint<32>, readVariantUint<32>, 1);
-    XX(int64_t, 100, writeVariantInt<64>, readVariantInt<64>, 1);
-    XX(uint64_t, 100, writeVariantUint<32>, readVariantUint<64>, 1);
+    XX(int32_t, 100, writeVarintInt<32>, readVarintInt<32>, 1);
+    XX(uint32_t, 100, writeVarintUint<32>, readVarintUint<32>, 1);
+    XX(int64_t, 100, writeVarintInt<64>, readVarintInt<64>, 1);
+    XX(uint64_t, 100, writeVarintUint<32>, readVarintUint<64>, 1);
 #undef XX
 }
 
@@ -102,10 +102,10 @@ TEST(TEST_CASE, FileSerialization)
     XX(int64_t, 100, writeFixedInt<64>, readFixedUint<64>, 1);
     XX(uint64_t, 100, writeFixedUint<64>, readFixedUint<64>, 1);
 
-    XX(int32_t, 100, writeVariantInt<32>, readVariantInt<32>, 1);
-    XX(uint32_t, 100, writeVariantUint<32>, readVariantUint<32>, 1);
-    XX(int64_t, 100, writeVariantInt<64>, readVariantInt<64>, 1);
-    XX(uint64_t, 100, writeVariantUint<32>, readVariantUint<64>, 1);
+    XX(int32_t, 100, writeVarintInt<32>, readVarintInt<32>, 1);
+    XX(uint32_t, 100, writeVarintUint<32>, readVarintUint<32>, 1);
+    XX(int64_t, 100, writeVarintInt<64>, readVarintInt<64>, 1);
+    XX(uint64_t, 100, writeVarintUint<32>, readVarintUint<64>, 1);
 #undef XX
 }
 
@@ -144,7 +144,7 @@ TEST(TEST_CASE, StringSerialization)
     XX(100, writeFixedString<16>, readFixedString<16>, 10);
     XX(100, writeFixedString<32>, readFixedString<32>, 10);
     XX(100, writeFixedString<64>, readFixedString<64>, 10);
-    XX(100, writeStringVariantInt, readStringVariantInt, 26);
+    XX(100, writeStringVarintInt, readStringVarintInt, 26);
 #undef XX
 }
 

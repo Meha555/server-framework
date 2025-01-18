@@ -9,6 +9,8 @@ if (Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
 endif ()
 
+add_subdirectory(extra)
+
 # aux_source_directory(. src_list) # aux_source_directory不会递归
 file(GLOB_RECURSE src_list *.cc)
 

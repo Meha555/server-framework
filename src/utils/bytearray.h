@@ -74,29 +74,29 @@ public:
     }
 
     /**
-     * @brief 写入有符号Integer类型的Variant编码数据
+     * @brief 写入有符号Integer类型的Varint编码数据
      * @param SignedInteger 有符号Integer类型（int32_t或int64_t）
      * @param N 编码方式(32或64)
-     * @note 编码方式是：Variant32或Variant64
+     * @note 编码方式是：Varint32或Varint64
      * @post m_pos += 实际占用内存(1 ~ 5或10 bytes)
      *       如果 m_pos > m_size 则 m_size = m_pos
      */
     template<size_t N, typename SignedInteger = std::conditional<N == 32, int32_t, std::conditional<N == 64, int64_t, void>>, typename Dummy = std::enable_if_t<std::is_signed_v<SignedInteger>>>
-    void writeVariantInt(SignedInteger value)
+    void writeVarintInt(SignedInteger value)
     {
-        writeVariantUint<N>(Encode::Zigzag(value));
+        writeVarintUint<N>(Encode::Zigzag(value));
     }
 
     /**
-     * @brief 写入无符号Integer类型的Variant编码数据
+     * @brief 写入无符号Integer类型的Varint编码数据
      * @param UnsignedInteger 无符号Integer类型（uint32_t或uint64_t）
      * @param N 编码方式(32或64)
-     * @note 编码方式是：Variant32或Variant64
+     * @note 编码方式是：Varint32或Varint64
      * @post m_pos += 实际占用内存(1 ~ 5或10 bytes)
      *       如果 m_pos > m_size 则 m_size = m_pos
      */
     template<size_t N, typename UnsignedInteger = std::conditional<N == 32, uint32_t, std::conditional<N == 64, uint64_t, void>>, typename Dummy = std::enable_if_t<std::is_unsigned_v<UnsignedInteger>>>
-    void writeVariantUint(UnsignedInteger value)
+    void writeVarintUint(UnsignedInteger value)
     {
         size_t bytes = N == 32 ? 5 : 10;
         uint8_t tmp[bytes];
@@ -140,7 +140,7 @@ public:
      * @post m_pos += Varint64长度 + value.size()
      *       如果 m_pos > m_size 则 m_size = m_pos
      */
-    void writeStringVariantInt(const std::string &value);
+    void writeStringVarintInt(const std::string &value);
 
     /**
      * @brief 写入std::string类型的数据,无长度
@@ -182,9 +182,9 @@ public:
      * @exception 如果 readableSize() < 有符号VarintN实际占用内存 抛出 std::out_of_range
      */
     template<size_t N, typename Dummy = std::enable_if_t<N == 32 || N == 64>>
-    auto readVariantInt()
+    auto readVarintInt()
     {
-        return Decode::Zigzag(readVariantUint<N>());
+        return Decode::Zigzag(readVarintUint<N>());
     }
     /**
      * @brief 读取无符号VarintN类型的数据
@@ -193,7 +193,7 @@ public:
      * @exception 如果 readableSize() < 无符号VarintN实际占用内存 抛出 std::out_of_range
      */
     template<size_t N, typename UnsignedInteger = std::conditional_t<N == 32, uint32_t, std::conditional_t<N == 64, uint64_t, void>>, typename Dummy = std::enable_if_t<(N == 32 || N == 64) && std::is_unsigned_v<UnsignedInteger>>>
-    UnsignedInteger readVariantUint()
+    UnsignedInteger readVarintUint()
     {
         UnsignedInteger result = 0;
         for (int i = 0; i < N; i += 7) {
@@ -246,7 +246,7 @@ public:
      * @post m_pos += 无符号Varint64实际大小 + size;
      * @exception 如果 readableSize() < 无符号Varint64实际大小 + size 抛出 std::out_of_range
      */
-    std::string readStringVariantInt();
+    std::string readStringVarintInt();
 
     /**
      * @brief 清空ByteArray

@@ -18,6 +18,8 @@
 #define MEHA_UNLIKELY(x) (x)
 #endif
 
+#define UNUSED(x) (void)(x)
+
 // TODO 改成使用cmake.in来自动生成命令行宏
 
 // 普通断言

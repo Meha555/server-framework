@@ -109,9 +109,9 @@ void ByteArray::writeDouble(double value)
     writeFixedUint<64>(v);
 }
 
-void ByteArray::writeStringVariantInt(const std::string &value)
+void ByteArray::writeStringVarintInt(const std::string &value)
 {
-    writeVariantUint<64>(value.size());
+    writeVarintUint<64>(value.size());
     write(value.c_str(), value.size());
 }
 
@@ -136,9 +136,9 @@ double ByteArray::readDouble()
     return value;
 }
 
-std::string ByteArray::readStringVariantInt()
+std::string ByteArray::readStringVarintInt()
 {
-    uint64_t len = readVariantUint<64>();
+    uint64_t len = readVarintUint<64>();
     std::string buff;
     buff.resize(len);
     read(&buff[0], len);

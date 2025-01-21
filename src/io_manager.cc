@@ -18,14 +18,34 @@ namespace meha
 
 /* -------------------------------- FDContext ------------------------------- */
 
-void FdContext::addEvent(FdEvent event)
+FdContext::FdContext(int fd, FdEvent ev)
+    : m_fd(fd)
+    , m_events(ev)
 {
-    m_events = static_cast<FdEvent>(m_events | event);
 }
 
-void FdContext::delEvent(FdEvent event)
+FdContext::EpollOp FdContext::addEvent(FdEvent event)
 {
+    FdContext::EpollOp op = EpollOp::Err;
+    if (m_events == FdEvent::None) {
+        op = EpollOp::Add;
+    } else {
+        op = EpollOp::Mod;
+    }
+    m_events = static_cast<FdEvent>(m_events | event);
+    return op;
+}
+
+FdContext::EpollOp FdContext::delEvent(FdEvent event)
+{
+    FdContext::EpollOp op = EpollOp::Err;
+    if (m_events == FdEvent::Read || m_events == FdEvent::Write) {
+        op = EpollOp::Del;
+    } else {
+        op = EpollOp::Mod;
+    }
     m_events = static_cast<FdEvent>(m_events & ~event);
+    return op;
 }
 
 void FdContext::emitEvent(FdEvent event)
@@ -81,13 +101,12 @@ void FdContext::ClearHandler(FdContext::EventHandler &handler)
         return false;                                     \
     }
 
-#define EVENT_LISTEN_ACTION(fd_ctx, epoll_action)                                    \
-    const int op = fd_ctx->m_events == FDEvent::None ? epoll_action : EPOLL_CTL_MOD; \
-    ::epoll_event epevent{};                                                         \
-    epevent.events = EPOLLET | fd_ctx->m_events;                                     \
-    epevent.data.ptr = fd_ctx;                                                       \
-    if (::epoll_ctl(m_epollFd, op, fd_ctx->m_fd, &epevent) == -1) {                  \
-        return false;                                                                \
+#define EVENT_LISTEN_ACTION(fd_ctx, action)                             \
+    ::epoll_event epevent{};                                            \
+    epevent.events = EPOLLET | fd_ctx->m_events;                        \
+    epevent.data.ptr = fd_ctx;                                          \
+    if (::epoll_ctl(m_epollFd, action, fd_ctx->m_fd, &epevent) == -1) { \
+        return false;                                                   \
     }
 
 // IO最大超时时间配置项（默认1s一次）
@@ -115,6 +134,7 @@ IOManager::IOManager(size_t pool_size, bool use_caller)
     ASSERT(::fcntl(m_ticklePipe[0], F_SETFL, O_NONBLOCK) != -1);
     // 3. 将管道读端加入 epoll 监听
     ASSERT(::epoll_ctl(m_epollFd, EPOLL_CTL_ADD, m_ticklePipe[0], &event) != -1);
+    // 初始化 m_fdCtxs 池大小为64
     contextListResize(64);
     // 启动调度器
     start();
@@ -134,8 +154,7 @@ void IOManager::contextListResize(size_t size)
     m_fdCtxs.resize(size);
     for (size_t i = 0; i < m_fdCtxs.size(); i++) {
         if (!m_fdCtxs[i]) {
-            m_fdCtxs[i] = std::make_unique<FdContext>();
-            m_fdCtxs[i]->m_fd = i;
+            m_fdCtxs[i] = std::make_unique<FdContext>(i);
         }
     }
 }
@@ -160,8 +179,7 @@ bool IOManager::subscribeEvent(int fd, FDEvent event, Fiber::FiberFunc callback)
         triggerEvent(fd, event);
     }
 
-    fd_ctx->addEvent(event);
-    EVENT_LISTEN_ACTION(fd_ctx, EPOLL_CTL_ADD);
+    EVENT_LISTEN_ACTION(fd_ctx, fd_ctx->addEvent(event));
     ++m_pendingEvents;
     return true;
 }
@@ -170,8 +188,7 @@ bool IOManager::unsubscribeEvent(int fd, FDEvent event)
 {
     FIND_EVENT_LISTEN(fd, event);
     // 从对应的 fd_ctx 中删除该事件
-    fd_ctx->delEvent(event);
-    EVENT_LISTEN_ACTION(fd_ctx, EPOLL_CTL_DEL);
+    EVENT_LISTEN_ACTION(fd_ctx, fd_ctx->delEvent(event));
     // 如果该fd没有其他在监听的事件了，要从epoll对象中移除对该fd的监听
     FdContext::ClearHandler(fd_ctx->getHandler(event));
     --m_pendingEvents;
@@ -181,8 +198,7 @@ bool IOManager::unsubscribeEvent(int fd, FDEvent event)
 bool IOManager::triggerEvent(int fd, FDEvent event)
 {
     FIND_EVENT_LISTEN(fd, event);
-    fd_ctx->delEvent(event);
-    EVENT_LISTEN_ACTION(fd_ctx, EPOLL_CTL_DEL);
+    EVENT_LISTEN_ACTION(fd_ctx, fd_ctx->delEvent(event));
     fd_ctx->emitEvent(event);
     --m_pendingEvents;
     return true;

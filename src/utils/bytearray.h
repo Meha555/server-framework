@@ -3,9 +3,9 @@
 #include <cstddef>
 #include <memory>
 #include <string>
-#include <vector>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <vector>
 
 #include "byteorder.h"
 
@@ -384,8 +384,7 @@ private:
      * @post m_pos += sizeof(Integer);
      * @exception 如果 readableSize() < sizeof(Integer) 抛出 std::out_of_range
      */
-    template<size_t N, typename Integer
-        , typename Dummy = std::enable_if_t<N == 8 || N == 16 || N == 32 || N == 64>>
+    template<size_t N, typename Integer, typename Dummy = std::enable_if_t<N == 8 || N == 16 || N == 32 || N == 64>>
     void writeFixedIntImpl(Integer value)
     {
         if (m_endian != BYTE_ORDER) {

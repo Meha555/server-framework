@@ -21,6 +21,7 @@ static thread_local bool t_hook_enabled = false;
     DO(sleep)         \
     DO(usleep)        \
     DO(nanosleep)     \
+    DO(open)          \
     DO(socket)        \
     DO(connect)       \
     DO(accept)        \
@@ -434,6 +435,25 @@ int close(int fd)
         meha::FileDescriptorManager::Instance()->remove(fd);
     }
     return close_f(fd);
+}
+
+//////// fcntl.h
+
+int open(const char *pathname, int flags, ...)
+{
+    if (!meha::hook::t_hook_enabled) {
+        va_list args;
+        va_start(args, flags);
+        int fd = open_f(pathname, flags, args);
+        va_end(args);
+        return fd;
+    }
+    va_list args;
+    va_start(args, flags);
+    int fd = open_f(pathname, flags, args);
+    va_end(args);
+    meha::FileDescriptorManager::Instance()->fetch(fd, false);
+    return fd;
 }
 
 int fcntl(int fd, int cmd, ... /* arg */)

@@ -1,12 +1,13 @@
 #pragma once
 
-#include <string>
 #include <sstream>
+#include <string>
 
-namespace meha::utils {
+namespace meha::utils
+{
 
 template<typename InputIterator>
-std::string Join(InputIterator begin, InputIterator end, const std::string& delimiter)
+std::string Join(InputIterator begin, InputIterator end, const std::string &delimiter)
 {
     std::stringstream ss;
     for (InputIterator it = begin; it != end; ++it) {

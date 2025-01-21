@@ -24,7 +24,7 @@ public:
     explicit ConditionVariable();
     ~ConditionVariable();
 
-    template <typename Predicate>
+    template<typename Predicate>
     void wait(Predicate p)
     {
         pthread_mutex_lock(&m_mutex);
@@ -37,7 +37,7 @@ public:
      * @return true 条件变量触发了
      * @return false 条件变量没有触发
      */
-    template <typename Predicate>
+    template<typename Predicate>
     bool timeWait(uint32_t sec, Predicate p)
     {
         struct timespec absts;

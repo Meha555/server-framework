@@ -8,6 +8,7 @@ extern "C" {
     DO(sleep)         \
     DO(usleep)        \
     DO(nanosleep)     \
+    DO(open)          \
     DO(socket)        \
     DO(connect)       \
     DO(accept)        \

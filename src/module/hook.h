@@ -96,6 +96,9 @@ typedef ssize_t (*writev_func)(int fd, const struct iovec *iov, int iovcnt);
 extern writev_func writev_f;
 
 //////// fcntl.h
+typedef int (*open_func)(const char *pathname, int flags, ... /* arg */);
+extern open_func open_f;
+
 typedef int (*fcntl_func)(int fd, int cmd, ... /* arg */);
 extern fcntl_func fcntl_f;
 

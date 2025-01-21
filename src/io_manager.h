@@ -3,6 +3,7 @@
 #include <atomic>
 #include <memory>
 #include <variant>
+#include <sys/epoll.h>
 
 #include "scheduler.h"
 #include "timer.h"
@@ -22,6 +23,12 @@ public:
     enum FdEvent { None = 0x0,
                    Read = 0x1,
                    Write = 0x4 };
+    enum EpollOp {
+        Err = 0,
+        Add = EPOLL_CTL_ADD,
+        Mod = EPOLL_CTL_MOD,
+        Del = EPOLL_CTL_DEL,
+    };
     struct EventHandler
     {
         Scheduler::sptr scheduler = nullptr; // 指定处理该事件的调度器
@@ -33,24 +40,22 @@ public:
         // 重设当前EventHandler
         void reset(Scheduler::sptr sche, const Fiber::FiberFunc &cb)
         {
-            if (scheduler || isEmpty()) {
-                reset(nullptr, nullptr);
-            }
+            scheduler = sche;
             if (cb) {
-                scheduler = sche;
-                handle = std::move(cb);
+                handle = cb;
             } else {
-                scheduler = nullptr;
                 handle = std::monostate{};
             }
         }
     };
 
 public:
+    explicit FdContext(int fd, FdEvent ev = FdEvent::None);
+
     // 添加监听指定的事件
-    void addEvent(FdEvent event);
+    EpollOp addEvent(FdEvent event);
     // 取消监听指定的事件
-    void delEvent(FdEvent event);
+    EpollOp delEvent(FdEvent event);
     // 触发事件，然后删除该事件相关的信息
     void emitEvent(FdEvent event);
 

@@ -99,7 +99,7 @@ struct LogMessage
     };
 
     LogMessage(const std::string &file, const uint32_t line,
-               const std::string &func, const uint32_t tid, const uint32_t fid,
+               const std::string &func, const int32_t tid, const int32_t fid,
                const std::string &category,
                const LogLevel::Level level = LogLevel::DEBUG,
                const std::string &content = "")
@@ -125,8 +125,8 @@ struct LogMessage
     const std::string file; // 文件名
     const std::string function; // 函数名
     const uint32_t line; // 行号
-    const uint32_t tid; // 线程ID
-    const uint32_t fid; // 协程ID
+    const int32_t tid; // 线程ID
+    const int32_t fid; // 协程ID
     const std::chrono::system_clock::time_point timestamp; // 当前时间戳
     std::stringstream ss; // 日志流
 };

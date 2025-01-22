@@ -20,9 +20,12 @@ static thread_local Fiber::sptr t_scheduler_fiber{nullptr};
 // 调度器tickle频率配置项（默认1s一次）
 static ConfigItem<uint64_t>::sptr g_scheduler_tickle_time{Config::Lookup<uint64_t>("scheduler.tickle_time", 1, "单位:us")};
 
-Scheduler::sptr Scheduler::GetCurrent()
+Scheduler* Scheduler::GetCurrent()
 {
-    return t_scheduler->shared_from_this();
+    if (t_scheduler == nullptr) {
+        return nullptr;
+    }
+    return t_scheduler;
 }
 
 Fiber::sptr Scheduler::GetSchedulerFiber()
@@ -44,6 +47,8 @@ Scheduler::Scheduler(size_t pool_size, bool use_caller)
     }
     // 如果是另开一个线程作为调度线程
     else {
+        m_cv = new ConditionVariable();
+        m_syncCount = pool_size;
         m_callerFiber = nullptr;
         t_scheduler_fiber = nullptr;
     }
@@ -56,6 +61,9 @@ Scheduler::~Scheduler()
     ASSERT_FMT(isStoped(), "Scheduler销毁时，要求必须消费完里面的任务");
     // 执行这个析构函数的只可能是caller线程
     // 需要满足caller线程可以再次创建一个Scheduler并启动之，因此要重置线程局部变量
+    if (m_cv) {
+        delete m_cv;
+    }
     t_scheduler = nullptr;
     t_scheduler_fiber = nullptr;
     m_callerFiber = nullptr;
@@ -70,6 +78,12 @@ void Scheduler::start()
     for (size_t i = 0; i < m_threadPoolSize; i++) {
         m_threadPool.emplace_back(std::make_shared<Thread>(std::bind(&Scheduler::run, this)));
         m_threadPool.back()->start();
+    }
+    if (m_cv) {
+        m_cv->wait([this]() {
+            return m_syncCount > 0;
+        });
+        LOG_FMT_DEBUG(root, "WAIT: m_syncCount = %lu", m_syncCount);
     }
 }
 
@@ -119,17 +133,30 @@ void Scheduler::idle()
     }
 }
 
+void Scheduler::sync()
+{
+    if (!t_scheduler_fiber) {
+        // 为调度线程开启协程
+        t_scheduler_fiber = Fiber::GetCurrent();
+    }
+    if (m_cv && !t_scheduler) {
+        t_scheduler = this;
+        m_syncCount--;
+        if (m_syncCount == 0)
+            m_cv->signal();
+    }
+}
+
 void Scheduler::run()
 {
+    sync();
     // 开启Hook
     hook::SetHookEnable(false); // FIXME 临时
     auto cleanup = utils::GenScopeGuard([]() {
         // 关闭Hook
         hook::SetHookEnable(false);
     });
-    t_scheduler = this;
-    // 为调度线程开启协程
-    t_scheduler_fiber = Fiber::GetCurrent();
+
     // 该线程空闲时执行的协程（每个执行Scheduler::run方法的线程都有一个idle协程）
     auto idle_fiber = std::make_shared<Fiber>(std::bind(&Scheduler::idle, this), true);
     // 开始调度（死循环，一直遍历任务队列，取出任务，通知空闲的协程来执行。此时来执行的协程是运行在当前线程上的）

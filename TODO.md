@@ -1,5 +1,6 @@
 # 整改
 
+- [ ] 目前Scheduler不使用usercaller存在TLS的t_scheduler的初始化问题，其子类IOManager也就同样存在。这个暂时不好解决
 - [ ] 现在协程强行ctrl+c终止就会导致段错误
 - [ ] 有哪些api需要换成可重入的版本？比如strerror换成strerror_r？
 - [ ] 命令行参数解析换成用getopt系列接口

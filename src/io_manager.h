@@ -31,21 +31,17 @@ public:
     };
     struct EventHandler
     {
-        Scheduler::sptr scheduler = nullptr; // 指定处理该事件的调度器
+        Scheduler* scheduler = nullptr; // 指定处理该事件的调度器
         std::variant<std::monostate, Fiber::sptr, Fiber::FiberFunc> handle = std::monostate{}; // 处理该事件的回调句柄
         bool isEmpty() const
         {
             return std::holds_alternative<std::monostate>(handle);
         }
         // 重设当前EventHandler
-        void reset(Scheduler::sptr sche, const Fiber::FiberFunc &cb)
+        void reset(Scheduler* sche, const decltype(handle) &cb)
         {
             scheduler = sche;
-            if (cb) {
-                handle = cb;
-            } else {
-                handle = std::monostate{};
-            }
+            handle = cb;
         }
     };
 
@@ -53,7 +49,7 @@ public:
     explicit FdContext(int fd, FdEvent ev = FdEvent::None);
 
     // 添加监听指定的事件
-    EpollOp addEvent(FdEvent event);
+    EpollOp addEvent(FdEvent event, Fiber::FiberFunc callback);
     // 取消监听指定的事件
     EpollOp delEvent(FdEvent event);
     // 触发事件，然后删除该事件相关的信息
@@ -62,9 +58,7 @@ public:
     // 获取指定事件的处理器
     EventHandler &getHandler(FdEvent event);
     // 设置指定事件的处理器
-    void setHandler(FdEvent event, Scheduler::sptr scheduler, const Fiber::FiberFunc &callback);
-    // 清除指定的事件处理器
-    static inline void ClearHandler(EventHandler &handler);
+    void setHandler(FdEvent event, Scheduler* scheduler, const Fiber::FiberFunc &callback);
 
 private:
     mutable Mutex m_mutex;
@@ -85,7 +79,7 @@ public:
     using FDEvent = FdContext::FdEvent;
 
 public:
-    explicit IOManager(size_t pool_size, bool use_caller = false);
+    explicit IOManager(size_t pool_size, bool use_caller = true);
     ~IOManager() override;
 
     // thread-safe 给指定的 fd 增加事件监听，当 callback 是 nullptr 时，将当前上下文转换为协程，并作为事件回调使用
@@ -97,7 +91,7 @@ public:
     // thread-safe 立即触发指定 fd 的所有事件回调，然后移除所有的事件
     bool triggerAllEvents(int fd);
 
-    static IOManager::sptr GetCurrent();
+    static IOManager* GetCurrent();
 
 protected:
     void tickle() override;

@@ -2,6 +2,7 @@
 
 #include "fiber.h"
 #include "macro.h"
+#include "utils/cond.h"
 #include "utils/mutex.h"
 #include "utils/thread.h"
 #include <atomic>
@@ -109,7 +110,7 @@ public:
     };
 
     // 获取当前的调度器
-    static Scheduler::sptr GetCurrent();
+    static Scheduler* GetCurrent();
     // 获取当前调度器的调度协程
     static Fiber::sptr GetSchedulerFiber();
 
@@ -206,6 +207,8 @@ private:
     }
 
 protected:
+    // 让Scheduler::run完成t_scheduler的初始化
+    void sync();
     // 执行调度（调度协程入口）
     void run();
     // 调度器idle协程的执行函数
@@ -234,6 +237,9 @@ private:
     std::list<Task> m_taskList;
     // 用于保护任务队列的读写锁
     mutable Mutex m_mutex;
+    // 用于保证t_scheduler初始化的信号量
+    mutable ConditionVariable* m_cv = nullptr;
+    mutable size_t m_syncCount = 0;
 };
 
 } // namespace meha

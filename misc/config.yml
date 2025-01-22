@@ -24,7 +24,7 @@
 log:
   - category: core
     level: 1
-    pattern: "[%d] [%c][%p] [%f:%l]%T%m%n"
+    pattern: "[%d] [%c %p] [%t:%F] [%f:%l]%T%m%n"
     appender:
       - type: 0
       - type: 1

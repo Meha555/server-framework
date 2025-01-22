@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cerrno>
 #include <cstdint>
 extern "C" {
 #include <pthread.h>

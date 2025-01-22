@@ -24,7 +24,7 @@ FdContext::FdContext(int fd, FdEvent ev)
 {
 }
 
-FdContext::EpollOp FdContext::addEvent(FdEvent event)
+FdContext::EpollOp FdContext::addEvent(FdEvent event, Fiber::FiberFunc callback)
 {
     FdContext::EpollOp op = EpollOp::Err;
     if (m_events == FdEvent::None) {
@@ -33,6 +33,7 @@ FdContext::EpollOp FdContext::addEvent(FdEvent event)
         op = EpollOp::Mod;
     }
     m_events = static_cast<FdEvent>(m_events | event);
+    setHandler(event, Scheduler::GetCurrent(), callback);
     return op;
 }
 
@@ -45,22 +46,23 @@ FdContext::EpollOp FdContext::delEvent(FdEvent event)
         op = EpollOp::Mod;
     }
     m_events = static_cast<FdEvent>(m_events & ~event);
+    setHandler(event, nullptr, nullptr);
     return op;
 }
 
 void FdContext::emitEvent(FdEvent event)
 {
     ASSERT(m_events & event);
-    delEvent(event); // 清除触发状态
     auto &handler = getHandler(event);
     if (!handler.isEmpty()) {
+        ASSERT(handler.scheduler);
         if (auto fp = std::get_if<Fiber::sptr>(&handler.handle)) {
             handler.scheduler->schedule(*fp);
         } else if (auto fc = std::get_if<Fiber::FiberFunc>(&handler.handle)) {
             handler.scheduler->schedule(*fc);
         }
     }
-    ClearHandler(handler); // 从FDContext中删除该事件对应的信息
+    delEvent(event); // 清除触发状态
 }
 
 FdContext::EventHandler &FdContext::getHandler(FdEvent event)
@@ -75,14 +77,13 @@ FdContext::EventHandler &FdContext::getHandler(FdEvent event)
     }
 }
 
-void FdContext::setHandler(FdEvent event, Scheduler::sptr scheduler, const Fiber::FiberFunc &callback)
+void FdContext::setHandler(FdEvent event, Scheduler* scheduler, const Fiber::FiberFunc &callback)
 {
-    getHandler(event).reset(scheduler, callback);
-}
-
-void FdContext::ClearHandler(FdContext::EventHandler &handler)
-{
-    handler.reset(nullptr, nullptr);
+    if (callback) {
+        getHandler(event).reset(scheduler, callback);
+    } else {
+        getHandler(event).reset(scheduler, Fiber::GetCurrent());
+    }
 }
 
 /* -------------------------------- IOManager ------------------------------- */
@@ -110,11 +111,11 @@ void FdContext::ClearHandler(FdContext::EventHandler &handler)
     }
 
 // IO最大超时时间配置项（默认1s一次）
-static ConfigItem<uint64_t>::sptr g_max_timeout{Config::Lookup<uint64_t>("io.max_timeout", 1000, "单位:ms")};
+static ConfigItem<uint64_t>::sptr g_max_timeout{Config::Lookup<uint64_t>("io.max_timeout", 5000, "单位:ms")};
 
-IOManager::sptr IOManager::GetCurrent()
+IOManager* IOManager::GetCurrent()
 {
-    return std::dynamic_pointer_cast<IOManager>(Scheduler::GetCurrent());
+    return dynamic_cast<IOManager*>(Scheduler::GetCurrent());
 }
 
 IOManager::IOManager(size_t pool_size, bool use_caller)
@@ -134,10 +135,8 @@ IOManager::IOManager(size_t pool_size, bool use_caller)
     ASSERT(::fcntl(m_ticklePipe[0], F_SETFL, O_NONBLOCK) != -1);
     // 3. 将管道读端加入 epoll 监听
     ASSERT(::epoll_ctl(m_epollFd, EPOLL_CTL_ADD, m_ticklePipe[0], &event) != -1);
-    // 初始化 m_fdCtxs 池大小为64
-    contextListResize(64);
-    // 启动调度器
-    start();
+    // 初始化 m_fdCtxs 池大小为256
+    contextListResize(256);
 }
 
 IOManager::~IOManager()
@@ -179,7 +178,7 @@ bool IOManager::subscribeEvent(int fd, FDEvent event, Fiber::FiberFunc callback)
         triggerEvent(fd, event);
     }
 
-    EVENT_LISTEN_ACTION(fd_ctx, fd_ctx->addEvent(event));
+    EVENT_LISTEN_ACTION(fd_ctx, fd_ctx->addEvent(event, callback));
     ++m_pendingEvents;
     return true;
 }
@@ -190,7 +189,7 @@ bool IOManager::unsubscribeEvent(int fd, FDEvent event)
     // 从对应的 fd_ctx 中删除该事件
     EVENT_LISTEN_ACTION(fd_ctx, fd_ctx->delEvent(event));
     // 如果该fd没有其他在监听的事件了，要从epoll对象中移除对该fd的监听
-    FdContext::ClearHandler(fd_ctx->getHandler(event));
+    fd_ctx->getHandler(event).reset(nullptr, std::monostate{});
     --m_pendingEvents;
     return true;
 }
@@ -206,8 +205,22 @@ bool IOManager::triggerEvent(int fd, FDEvent event)
 
 bool IOManager::triggerAllEvents(int fd)
 {
-    FIND_EVENT_LISTEN(fd, 1);
-    if (::epoll_ctl(m_epollFd, EPOLL_CTL_DEL, fd, nullptr) == -1) {
+    FdContext *fd_ctx = nullptr;
+    {
+        ReadScopedLock lock(&m_mutex);
+        if (m_fdCtxs.size() <= static_cast<size_t>(fd)) {
+            return false;
+        }
+        fd_ctx = m_fdCtxs[fd].get();
+    }
+    ScopedLock lock(&(fd_ctx->m_mutex));
+    if (!fd_ctx->m_events) {
+        return true;
+    }
+    ::epoll_event epevent;
+    epevent.events   = 0;
+    epevent.data.ptr = fd_ctx;
+    if (::epoll_ctl(m_epollFd, EPOLL_CTL_DEL, fd, &epevent) == -1) {
         return false;
     }
     if (fd_ctx->m_events & FDEvent::Read) {
@@ -239,7 +252,9 @@ bool IOManager::isStoped() const
 
 void IOManager::idle()
 {
-    auto event_list = std::make_unique<epoll_event[]>(64);
+    // 一次epoll_wait最多检测256个就绪事件，如果就绪事件超过了这个数，那么会在下轮epoll_wati继续处理
+    const uint64_t MAX_EVNETS = 256;
+    auto event_list = std::make_unique<epoll_event[]>(MAX_EVNETS);
 
     while (true) {
         if (isStoped()) {
@@ -248,20 +263,22 @@ void IOManager::idle()
 
         int result = 0;
         while (true) {
+            // 默认超时时间5秒，如果下一个定时器的超时时间大于5秒，仍以5秒来计算超时，避免定时器超时时间太大时，epoll_wait一直阻塞
             uint64_t next_timeout_ms = std::min(getNextTimer(), g_max_timeout->getValue());
             // 阻塞等待 epoll 返回结果
-            result = ::epoll_wait(m_epollFd, event_list.get(), 64, static_cast<int>(next_timeout_ms));
+            result = ::epoll_wait(m_epollFd, event_list.get(), MAX_EVNETS, static_cast<int>(next_timeout_ms));
 
             if (result < 0 && errno != EINTR) {
                 LOG_FMT_WARN(core, "调度器@%p epoll_wait异常: %s(%d)", this, ::strerror(errno), errno);
             }
             if (result >= 0) {
+                LOG_FMT_DEBUG(core, "epoll_wait result = %d", result);
                 // 有套接字就绪，处理事件
                 break;
             }
         }
 
-        // 记得处理一下定时事件 // FIXME 这里的超时事件不精确吧？只有在跳出循环外才会走到并处理
+        // FIXME 收集所有已超时的定时器，调度执行超时回调函数 这里的超时事件不精确吧？只有在跳出循环外才会走到并处理
         std::vector<Fiber::FiberFunc> fns;
         listExpiredCallback(fns);
         if (!fns.empty()) {
@@ -274,21 +291,20 @@ void IOManager::idle()
             // 处理来自主线程的消息
             if (ev.data.fd == m_ticklePipe[0]) {
                 char dummy;
-                // 将来自主线程的数据读取干净
-                while (true) {
-                    int status = ::read(ev.data.fd, &dummy, 1); // TODO 这里是不是可以用缓冲读取（注意这里read会更改seek指针？但是这里fd是套接字诶）
-                    if (status == 0 || status == -1) { // 尽可能读完（读不出东西了或者读到来异常）
-                        break;
-                    }
-                }
+                // 将来自主线程的tickle数据读取干净（读不出东西了或者读到来异常）
+                while (::read(ev.data.fd, &dummy, 1) > 0);
                 continue;
             }
             // 处理非主线程的消息
             auto fd_ctx = static_cast<FdContext *>(ev.data.ptr);
             ScopedLock lock(&fd_ctx->m_mutex);
-            // 该事件的 fd 出现错误或者已经失效
+            /**
+             * EPOLLERR: 出错，比如写读端已经关闭的pipe
+             * EPOLLHUP: 套接字对端关闭
+             * 出现这两种事件，应该同时触发fd的读和写事件，否则有可能出现注册的事件永远执行不到的情况
+             */
             if (ev.events & (EPOLLERR | EPOLLHUP)) {
-                ev.events |= EPOLLIN | EPOLLOUT; // 我们标记这种情况为可读可写
+                ev.events |= EPOLLIN | EPOLLOUT;
             }
             auto real_events = FDEvent::None;
             if (ev.events & EPOLLIN) {

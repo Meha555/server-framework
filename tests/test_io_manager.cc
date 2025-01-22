@@ -1,5 +1,4 @@
 #include <arpa/inet.h>
-#include <cstdlib>
 #include <fcntl.h>
 #include <gtest/gtest.h>
 
@@ -15,6 +14,7 @@ protected:
     void SetUp() override
     {
         iom = new IOManager(2);
+        iom->start();
     }
     void TearDown() override
     {
@@ -27,7 +27,7 @@ protected:
 // 模拟服务器
 TEST_F(IOManagerTest, SocketIO)
 {
-    system("nc -lvp 8800 &"); // 简单起见，使用netcat开启一个回声TCP服务器
+    // system("nc -lvp 8800 &"); // 简单起见，使用netcat开启一个回声TCP服务器 FIXME nc貌似不行，用自己写的回声服务器就可以
     int sockfd;
     struct sockaddr_in server_addr;
     EXPECT_NE((sockfd = socket(AF_INET, SOCK_STREAM, 0)), -1);
@@ -44,7 +44,7 @@ TEST_F(IOManagerTest, SocketIO)
     EXPECT_TRUE(iom->subscribeEvent(sockfd, FdContext::FdEvent::Write, [&]() {
         const char msg[] = "你好，我是客户端";
         LOG_FMT_INFO(root, "写就绪，通知服务端: %s", msg);
-        EXPECT_EQ(send(sockfd, msg, sizeof(msg), 0), sizeof(msg)) << "写就绪，通知服务端: " << msg;
+        EXPECT_EQ(send(sockfd, msg, sizeof(msg), 0), sizeof(msg));
     }));
     EXPECT_TRUE(iom->subscribeEvent(sockfd, FdContext::FdEvent::Read, [&]() {
         char buffer[1024];
@@ -52,14 +52,14 @@ TEST_F(IOManagerTest, SocketIO)
         buffer[nbytes] = '\0';
         EXPECT_EQ(nbytes, sizeof("你好，我是客户端"));
         LOG_FMT_INFO(root, "读就绪，服务端回应: %s", buffer);
-        EXPECT_STREQ(buffer, "你好，我是客户端") << buffer;
+        EXPECT_STREQ(buffer, "你好，我是客户端");
         EXPECT_TRUE(iom->triggerAllEvents(sockfd));
         close(sockfd);
     }));
 }
 
 TEST_F(IOManagerTest, Timer)
-{GTEST_SKIP();
+{
     LOG(root, WARN) << "添加3s后的单发定时器";
     iom->addTimer(
         3000, []() {

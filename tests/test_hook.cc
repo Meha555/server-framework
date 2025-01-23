@@ -14,9 +14,11 @@ protected:
     void SetUp() override
     {
         iom = new IOManager(1);
+        iom->start();
     }
     void TearDown() override
     {
+        iom->stop();
         delete iom;
     }
 

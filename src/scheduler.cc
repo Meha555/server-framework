@@ -151,7 +151,7 @@ void Scheduler::run()
 {
     sync();
     // 开启Hook
-    hook::SetHookEnable(false); // FIXME 临时
+    hook::SetHookEnable(true); // FIXME 临时
     auto cleanup = utils::GenScopeGuard([]() {
         // 关闭Hook
         hook::SetHookEnable(false);

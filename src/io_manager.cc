@@ -141,7 +141,7 @@ IOManager::IOManager(size_t pool_size, bool use_caller)
 
 IOManager::~IOManager()
 {
-    stop();
+    ASSERT_FMT(isStoped(), "IOManager销毁时，要求必须消费完里面的任务");
     // 关闭打开的文件标识符
     ::close(m_epollFd);
     ::close(m_ticklePipe[0]);

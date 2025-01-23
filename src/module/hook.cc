@@ -99,8 +99,9 @@ template<typename OriginFunc, typename... Args>
 static ssize_t doIO(int fd, OriginFunc func, const char *func_name,
                     meha::FdContext::FdEvent event, meha::FileDescriptor::TimeoutType fd_timeout_type, Args &&...args)
 {
+    auto iom = meha::IOManager::GetCurrent();
     // 如果没有启用 hook，则直接调用系统函数
-    if (!meha::hook::t_hook_enabled) {
+    if (!meha::hook::t_hook_enabled || !iom) {
         return func(fd, std::forward<Args>(args)...);
     }
 
@@ -141,7 +142,6 @@ retry:
             LOG_FMT_DEBUG(core, "doIO(%s): 开始异步等待", func_name);
         }
 
-        auto iom = meha::IOManager::GetCurrent();
         meha::Timer::sptr timer;
         std::weak_ptr<TimerInfo> timer_info_wp(timer_info);
         // 如果设置了超时时间，在指定时间后取消掉该 fd 的事件监听
@@ -190,7 +190,8 @@ retry:
 int ConnectWithTimeout(int sockfd, const struct sockaddr *addr,
                        socklen_t addrlen, uint64_t timeout_ms)
 {
-    if (!meha::hook::t_hook_enabled) {
+    auto iom = meha::IOManager::GetCurrent();
+    if (!meha::hook::t_hook_enabled || !iom) {
         return connect_f(sockfd, addr, addrlen);
     }
     auto fdp = meha::FileDescriptorManager::Instance()->fetch(sockfd);
@@ -211,7 +212,6 @@ int ConnectWithTimeout(int sockfd, const struct sockaddr *addr,
      * 调用 connect，非阻塞形式下会返回-1，但是 errno 被设为 EINPROGRESS，表明
      * connect 仍旧在进行还没有完成。下一步就需要为其添加写就绪监听。
      */
-    auto iom = meha::IOManager::GetCurrent();
     meha::Timer::sptr timer;
     auto timer_info = std::make_shared<TimerInfo>();
     std::weak_ptr<TimerInfo> weak_timer_info(timer_info);
@@ -283,11 +283,11 @@ extern "C" {
  */
 unsigned int sleep(unsigned int seconds)
 {
-    if (!meha::hook::t_hook_enabled) {
+    auto iom = meha::IOManager::GetCurrent();
+    if (!meha::hook::t_hook_enabled || !iom) {
         return sleep_f(seconds);
     }
     meha::Fiber::sptr fiber = meha::Fiber::GetCurrent();
-    auto iom = meha::IOManager::GetCurrent();
     ASSERT(iom);
     // 设置超时
     iom->addTimer(seconds * 1000, [iom, fiber]() {
@@ -302,12 +302,11 @@ unsigned int sleep(unsigned int seconds)
  */
 int usleep(useconds_t usec)
 {
-    if (!meha::hook::t_hook_enabled) {
+    auto iom = meha::IOManager::GetCurrent();
+    if (!meha::hook::t_hook_enabled || !iom) {
         return usleep_f(usec);
     }
     meha::Fiber::sptr fiber = meha::Fiber::GetCurrent();
-    auto iom = meha::IOManager::GetCurrent();
-    ASSERT(iom);
     // 设置超时
     iom->addTimer(usec / 1000, [iom, fiber]() {
         iom->schedule(fiber);
@@ -318,12 +317,12 @@ int usleep(useconds_t usec)
 
 int nanosleep(const struct timespec *req, struct timespec *rem)
 {
-    if (!meha::hook::t_hook_enabled) {
+    auto iom = meha::IOManager::GetCurrent();
+    if (!meha::hook::t_hook_enabled || !iom) {
         return nanosleep_f(req, rem);
     }
     int timeout_ms = req->tv_sec * 1000 + req->tv_nsec / 1000 / 1000;
     meha::Fiber::sptr fiber = meha::Fiber::GetCurrent();
-    auto iom = meha::IOManager::GetCurrent();
     ASSERT(iom);
     // 设置超时
     iom->addTimer(timeout_ms, [iom, fiber]() {
@@ -546,7 +545,6 @@ int fcntl(int fd, int cmd, ... /* arg */)
 
 int ioctl(int fd, unsigned long request, ...)
 {
-    // TODO 这个函数写的对吗？
     va_list va;
     va_start(va, request);
     void *arg = va_arg(va, void *);

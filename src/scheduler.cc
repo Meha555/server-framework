@@ -20,7 +20,7 @@ static thread_local Fiber::sptr t_scheduler_fiber{nullptr};
 // 调度器tickle频率配置项（默认1s一次）
 static ConfigItem<uint64_t>::sptr g_scheduler_tickle_time{Config::Lookup<uint64_t>("scheduler.tickle_time", 1, "单位:us")};
 
-Scheduler* Scheduler::GetCurrent()
+Scheduler *Scheduler::GetCurrent()
 {
     if (t_scheduler == nullptr) {
         return nullptr;

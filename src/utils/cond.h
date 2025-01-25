@@ -39,7 +39,7 @@ public:
      * @return false 条件变量没有触发
      */
     template<typename Predicate>
-    bool timeWait(uint32_t sec, Predicate p)
+    bool timeWait(time_t sec, Predicate p)
     {
         struct timespec absts;
         clock_gettime(CLOCK_MONOTONIC, &absts); // 需要是绝对时间

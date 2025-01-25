@@ -17,7 +17,7 @@ class Thread : public std::enable_shared_from_this<Thread>
     friend struct ThreadClosure;
     DISABLE_COPY(Thread)
 public:
-    MEHA_PTR_INSIDE_CLASS(Thread)
+    using sptr = std::shared_ptr<Thread>;
     using ThreadFunc = std::function<void()>;
 
     enum Status {

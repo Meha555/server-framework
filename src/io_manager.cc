@@ -77,7 +77,7 @@ FdContext::EventHandler &FdContext::getHandler(FdEvent event)
     }
 }
 
-void FdContext::setHandler(FdEvent event, Scheduler* scheduler, const Fiber::FiberFunc &callback)
+void FdContext::setHandler(FdEvent event, Scheduler *scheduler, const Fiber::FiberFunc &callback)
 {
     if (callback) {
         getHandler(event).reset(scheduler, callback);
@@ -113,9 +113,9 @@ void FdContext::setHandler(FdEvent event, Scheduler* scheduler, const Fiber::Fib
 // IO最大超时时间配置项（默认1s一次）
 static ConfigItem<uint64_t>::sptr g_max_timeout{Config::Lookup<uint64_t>("io.max_timeout", 5000, "单位:ms")};
 
-IOManager* IOManager::GetCurrent()
+IOManager *IOManager::GetCurrent()
 {
-    return dynamic_cast<IOManager*>(Scheduler::GetCurrent());
+    return dynamic_cast<IOManager *>(Scheduler::GetCurrent());
 }
 
 IOManager::IOManager(size_t pool_size, bool use_caller)
@@ -218,7 +218,7 @@ bool IOManager::triggerAllEvents(int fd)
         return true;
     }
     ::epoll_event epevent;
-    epevent.events   = 0;
+    epevent.events = 0;
     epevent.data.ptr = fd_ctx;
     if (::epoll_ctl(m_epollFd, EPOLL_CTL_DEL, fd, &epevent) == -1) {
         return false;
@@ -292,7 +292,8 @@ void IOManager::idle()
             if (ev.data.fd == m_ticklePipe[0]) {
                 char dummy;
                 // 将来自主线程的tickle数据读取干净（读不出东西了或者读到来异常）
-                while (::read(ev.data.fd, &dummy, 1) > 0);
+                while (::read(ev.data.fd, &dummy, 1) > 0)
+                    ;
                 continue;
             }
             // 处理非主线程的消息

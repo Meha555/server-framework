@@ -53,7 +53,6 @@ struct is_valid_task<std::variant<Types...>>
  * */
 class Scheduler : public utils::NonCopyable, public std::enable_shared_from_this<Scheduler>
 {
-    MEHA_PTR_INSIDE_CLASS(Scheduler)
 private:
     /**
      * @brief 任务包装类
@@ -100,6 +99,8 @@ private:
     };
 
 public:
+    using sptr = std::shared_ptr<Scheduler>;
+
     /**
      * @brief 调度策略 //TODO 还没实现，可以参考一下STL中的适配器
      * @note 由于估计任务运行时间不知道怎么做，所以只设想了这几种
@@ -110,7 +111,7 @@ public:
     };
 
     // 获取当前的调度器
-    static Scheduler* GetCurrent();
+    static Scheduler *GetCurrent();
     // 获取当前调度器的调度协程
     static Fiber::sptr GetSchedulerFiber();
 
@@ -238,7 +239,7 @@ private:
     // 用于保护任务队列的读写锁
     mutable Mutex m_mutex;
     // 用于保证t_scheduler初始化的信号量
-    mutable ConditionVariable* m_cv = nullptr;
+    mutable ConditionVariable *m_cv = nullptr;
     mutable size_t m_syncCount = 0;
 };
 

@@ -32,7 +32,7 @@ log:
         file: /var/log/server-framework/core.log
   - category: root
     level: 2
-    pattern: "[%d] [%c][%p] [%f]%T%m%n"
+    pattern: "[%d] [%c %p] [%f]%T%m%n"
     appender:
       - type: 0
       - type: 1

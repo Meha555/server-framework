@@ -2,8 +2,8 @@
 
 #include <atomic>
 #include <memory>
-#include <variant>
 #include <sys/epoll.h>
+#include <variant>
 
 #include "scheduler.h"
 #include "timer.h"
@@ -31,14 +31,14 @@ public:
     };
     struct EventHandler
     {
-        Scheduler* scheduler = nullptr; // 指定处理该事件的调度器
+        Scheduler *scheduler = nullptr; // 指定处理该事件的调度器
         std::variant<std::monostate, Fiber::sptr, Fiber::FiberFunc> handle = std::monostate{}; // 处理该事件的回调句柄
         bool isEmpty() const
         {
             return std::holds_alternative<std::monostate>(handle);
         }
         // 重设当前EventHandler
-        void reset(Scheduler* sche, const decltype(handle) &cb)
+        void reset(Scheduler *sche, const decltype(handle) &cb)
         {
             scheduler = sche;
             handle = cb;
@@ -58,7 +58,7 @@ public:
     // 获取指定事件的处理器
     EventHandler &getHandler(FdEvent event);
     // 设置指定事件的处理器
-    void setHandler(FdEvent event, Scheduler* scheduler, const Fiber::FiberFunc &callback);
+    void setHandler(FdEvent event, Scheduler *scheduler, const Fiber::FiberFunc &callback);
 
 private:
     mutable Mutex m_mutex;
@@ -75,7 +75,7 @@ private:
 class IOManager final : public Scheduler, public TimerManager
 {
 public:
-    MEHA_PTR_INSIDE_CLASS(IOManager)
+    using sptr = std::shared_ptr<IOManager>;
     using FDEvent = FdContext::FdEvent;
 
 public:
@@ -91,7 +91,7 @@ public:
     // thread-safe 立即触发指定 fd 的所有事件回调，然后移除所有的事件
     bool triggerAllEvents(int fd);
 
-    static IOManager* GetCurrent();
+    static IOManager *GetCurrent();
 
 protected:
     void tickle() override;

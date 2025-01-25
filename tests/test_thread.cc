@@ -52,12 +52,13 @@ TEST(TEST_CASE, CreateThread)
 TEST(TEST_CASE, ReadWriteLock)
 {
     EXPECT_NO_THROW(
-    vector<Thread::uptr> thread_list;
+    vector<Thread::sptr> thread_list;
     for (int i = 0; i < 10; i++) {
-        thread_list.emplace_back(make_unique<Thread>(&fn_2));
+        thread_list.push_back(make_shared<Thread>(&fn_2));
     }
 
     for (auto &thread : thread_list) {
+        thread->start();
         thread->join();
     }
 

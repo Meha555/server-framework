@@ -7,8 +7,9 @@ option(BUILD_EXAMPLES "生成示例" ON)
 # 注意CMAKE预定义变量无法自己设置为缓存的，因为他们初始化地更早，所以自己写的set/option不会对它们起作用
 set(CMAKE_CXX_STANDARD 17 REQUIRED)
 set(CMAKE_BUILD_TYPE "Debug")
-# set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# 用于测试覆盖率的编译条件
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage -lgcov -fno-access-control")
 
 add_definitions("-O0 -g -rdynamic -ggdb -Wno-unused-variable")
 

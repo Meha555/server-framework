@@ -6,6 +6,8 @@ lib/
 bin/
 build/
 testonly/
+report/
+html/
 
 # Created by .ignore support plugin (hsz.mobi)
 ### CMake template

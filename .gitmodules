@@ -1,0 +1,3 @@
+[submodule "3rdparty/tinyrpc"]
+	path = 3rdparty/tinyrpc
+	url = git@github.com:Meha555/tinyrpc.git

@@ -1,6 +1,7 @@
 #include "io_manager.h"
 #include "log.h"
 #include <arpa/inet.h>
+#include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
 #include <netinet/in.h>
@@ -21,6 +22,8 @@ void test_fiber()
 
 void TEST_CreateIOManager()
 {
+    system("nc -l 8800 &");
+    sleep(1);
     char buffer[1024];
     const char msg[] = "懂的都懂";
     meha::IOManager iom(2);
@@ -75,7 +78,7 @@ void TEST_timer()
 
 int main()
 {
-    // TEST_CreateIOManager();
-    TEST_timer();
+    TEST_CreateIOManager();
+    // TEST_timer();
     return 0;
 }

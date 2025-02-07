@@ -2,18 +2,30 @@
 
 ## 简介
 
-仿[sylar: C++高性能分布式服务器框架](https://github.com/sylar-yin/sylar)的基于C++17实现的高性能服务器框架。
-
-参考资料：
-
-- [C++高性能服务器框架 – SYLAR – 02日志模块 – sylar的博客](http://www.sylar.top/blog/?p=147)
-- [C++_古猜..的博客-CSDN博客](https://blog.csdn.net/qq_35099224/category_12613947.html)
-- [日志模块 - 类库与框架 - 程序员的自我修养 (midlane.top)](https://www.midlane.top/wiki/pages/viewpage.action?pageId=10061019#id-日志模块-LogEventWrap)
-- [sylar C++高性能服务器框架——日志模块 - 掘金 (juejin.cn)](https://juejin.cn/post/7241821748211777593#heading-51)
+基于C++17实现的面向协程的服务器框架，旨在提供开箱即用的简单接口，并将本人平时工程实践应用其中。
 
 ## 项目结构
 
 本项目编译生成静态库 `libconet.a`，测试代码在tests下面。
+
+主要模块（master分支）：
+
+- 日志
+- 配置文件解析
+- Pthread线程
+- 协程和协程调度器
+- HOOK模块
+- IO协程化和定时器
+
+dev模块尚未合入master分支的部分：
+
+- RPC（使用的是之前写的RPC框架）
+- LRU/LFU缓存
+- 命令行参数解析
+- 环境变量管理
+- 基本类型的序列化和套接字封装
+- zookeeper客户端封装
+- App类和配套的模块加载器
 
 ## 分支说明
 

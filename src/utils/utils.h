@@ -53,18 +53,18 @@ template<typename Callback>
 struct ScopeGuard
 {
     DISABLE_COPY(ScopeGuard) // RAII类务必记得禁用拷贝构造，否则容易出现编译器帮你拷贝了一份，最终导致调用两次析构产生double free
-			     // 可以参考：https://www.bilibili.com/video/BV11Z421u7xZ
+			     			 // 可以参考：https://www.bilibili.com/video/BV11Z421u7xZ
     ScopeGuard(const Callback &cb) noexcept
         : m_cb(cb)
         , m_invoke(true)
     {
     }
-    // RAII类一般会支持移动操作
     ScopeGuard(Callback &&cb) noexcept
         : m_cb(std::move(cb))
         , m_invoke(true)
     {
     }
+	// RAII类一般会支持移动操作
     ScopeGuard(ScopeGuard &&other) noexcept
         : m_cb(std::move(other.m_cb))
         , m_invoke(std::exchange(other.m_invoke, false))
@@ -75,7 +75,7 @@ struct ScopeGuard
         if (m_invoke) {
             m_cb();
         }
-	m_invokde = false;
+		m_invokde = false;
     }
     void dismiss()
     {
@@ -87,6 +87,7 @@ private:
     bool m_invoke;
 };
 
+// 再提供一个辅助的Make工厂函数
 template<typename Callback>
 ScopeGuard<typename std::decay_t<Callback>> GenScopeGuard(Callback &&cb)
 {
@@ -94,3 +95,4 @@ ScopeGuard<typename std::decay_t<Callback>> GenScopeGuard(Callback &&cb)
 }
 
 } // namespace meha::utils
+

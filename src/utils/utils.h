@@ -54,7 +54,7 @@ struct ScopeGuard
 {
     DISABLE_COPY(ScopeGuard) // RAII类务必记得禁用拷贝构造，否则容易出现编译器帮你拷贝了一份，最终导致调用两次析构产生double free
 			     			 // 可以参考：https://www.bilibili.com/video/BV11Z421u7xZ
-    ScopeGuard(const Callback &cb) noexcept
+    ScopeGuard(const Callback &cb) noexcept // 这里务必使用常左值引用，否则无法持有捕获了不可拷贝数据的lambda，也在cb是右值时和ScopeGuard(Callback &&cb)存在重载函数不明确的问题（因为都可以通过1次用户定义的转换如拷贝或移动构造接收参数，且没有更优的匹配，此时两者匹配优先级相同）
         : m_cb(cb)
         , m_invoke(true)
     {
@@ -75,7 +75,7 @@ struct ScopeGuard
         if (m_invoke) {
             m_cb();
         }
-		m_invokde = false;
+		m_invoke = false;
     }
     void dismiss()
     {
@@ -95,4 +95,5 @@ ScopeGuard<typename std::decay_t<Callback>> GenScopeGuard(Callback &&cb)
 }
 
 } // namespace meha::utils
+
 

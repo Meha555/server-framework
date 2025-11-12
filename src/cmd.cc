@@ -8,17 +8,6 @@
 namespace meha
 {
 
-bool ArgParser::addFlag(const Flag &flag)
-{
-    return m_flagsPattern.emplace(flag.longKey(), Data{flag, false}).second;
-}
-
-bool ArgParser::addOption(const Option &option)
-{
-    return m_optionsPattern.emplace(option.longKey(), Data{option, false}).second;
-}
-// TODO 这里是需要实现Arg的移动构造函数吗(各成员可移动，这个类会是可移动的吗)
-
 bool ArgParser::addArg(const Arg &arg)
 {
     switch (arg.type()) {
@@ -29,6 +18,26 @@ bool ArgParser::addArg(const Arg &arg)
     default:
         abort();
     }
+}
+
+bool ArgParser::addFlag(const std::string &longKey, const std::string &shortKey, const std::string &help, bool required)
+{
+    return addFlag(Flag(longKey, shortKey, help, required));
+}
+bool ArgParser::addOption(const std::string &longKey, const std::string &shortKey, const std::string &help,
+               bool required, const std::string &default_value, const std::vector<Option::Rule::sptr> &rules)
+{
+    return addOption(Option(longKey, shortKey, help, required, default_value, rules));
+}
+
+bool ArgParser::addFlag(const Flag &flag)
+{
+    return m_flagsPattern.emplace(flag.longKey(), Data{flag, false}).second;
+}
+
+bool ArgParser::addOption(const Option &option)
+{
+    return m_optionsPattern.emplace(option.longKey(), Data{option, false}).second;
 }
 
 bool ArgParser::parseArgs(int argc, char *argv[])
@@ -62,16 +71,19 @@ bool ArgParser::parseArgs()
 bool ArgParser::isFlagSet(const std::string &key) const
 {
     return std::any_of(m_flagsPattern.cbegin(), m_flagsPattern.cend(), [&key](const auto &arg) {
-        return key == arg.second.data.longKey() || key == arg.second.data.shortKey();
+        return key == arg.second.data.longKey() || key == arg.second.data.shortKey() && arg.second.isValid;
     });
 }
 
-std::optional<std::any> ArgParser::getOptionValue(const std::string &key) const
+std::optional<std::string> ArgParser::getOptionValue(const std::string &key) const
 {
     auto it = std::find_if(m_optionsPattern.cbegin(), m_optionsPattern.cend(), [&key](const auto &arg) {
-        return key == arg.second.data.longKey() || key == arg.second.data.shortKey();
+        return key == arg.second.data.longKey() || key == arg.second.data.shortKey() && arg.second.isValid;
     });
-    return it == m_optionsPattern.cend() ? std::nullopt : it->second.data.value();
+    if (it == m_optionsPattern.cend()) {
+        return std::nullopt;
+    }
+    return it->second.data.value();
 }
 
 std::string ArgParser::dumpAll() const
@@ -156,7 +168,7 @@ bool ArgParser::doParseFlags()
     bool isSet = true;
     for (auto &arg : m_flagsPattern) {
         if (!arg.second.isValid && arg.second.data.isRequired()) {
-            LOG(core, FATAL) << arg.second.data << " is required but not set";
+            LOG(core, FATAL) << "'" << arg.second.data << "' is required but not set";
             isSet = false;
         }
     }
@@ -166,18 +178,26 @@ bool ArgParser::doParseFlags()
 bool ArgParser::doParseOptions()
 {
     bool checkRules = true;
-    for (auto &opt : m_options) {
-        for (auto &arg : m_optionsPattern) {
-            if (opt.first == arg.second.data.longKey() || opt.first == arg.second.data.shortKey()) {
-                arg.second.isValid = arg.second.data.isFitRules();
-                if (!arg.second.isValid) {
-                    checkRules = false;
-                    LOG(core, FATAL) << arg.second.data << " do not fit the rules";
-                    continue;
-                }
-                arg.second.data.setValue(opt.second); // 设置value不会改变键值，也就不会改变迭代顺序
-            }
+    for (const auto &[optKey, optValue] : m_options) {
+        const auto &it = m_optionsPattern.find(optKey);
+        if (it == m_optionsPattern.cend()) {
+            continue;
         }
+        if (optValue.empty()) {
+            LOG(core, FATAL) << "'" << optKey << "' needs value";
+            checkRules = false;
+            m_optionsPattern.erase(it);
+            break;
+        }
+        const auto &optPattern = it->second;
+        optPattern.isValid = optPattern.data.isFitRules();
+        if (!optPattern.isValid) {
+            LOG(core, FATAL) << "'" << optKey << "' do not fit the rules";
+            checkRules = false;
+            m_optionsPattern.erase(it);
+            break;
+        }
+        optPattern.data.setValue(optValue);
     }
     return checkRules;
 }

@@ -1,4 +1,5 @@
 find_package(GTest CONFIG REQUIRED)
+include(GoogleTest)
 
 # file(GLOB src_list *.cc)
 # 如果使用aux_source_directory来代替的话，注意只能使用绝对路径
@@ -20,4 +21,5 @@ foreach(v ${src_list})
     )
     # 添加CTest
     add_test(NAME ${test_name} COMMAND $<TARGET_FILE:${test_name}>) # NAME是指明测试的名称 ,COMMAND指要运行的测试文件所在的路径
+    gtest_discover_tests(${test_name})
 endforeach()

@@ -19,14 +19,16 @@ add_definitions("-std=c++17")
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
-include(CTest) # 引入CTest
+include(CTest)
+enable_testing()
 
 # 全局头文件搜索目录
 include_directories(src)
 
 add_subdirectory(src)
 if(BUILD_TESTING)
-	add_subdirectory(tests)
+	# TODO 应该学习leveldb那样，将单测和源码放一起，这样对源码的条件构建就能同时影响单测。否则单测无条件全编，但是源码可能部分不编，这样就对不上了
+	# add_subdirectory(tests) 
 endif()
 if(BUILD_EXAMPLES)
 	add_subdirectory(examples)

@@ -123,7 +123,7 @@ public:
         std::string m_rule;
     };
     explicit Option(const std::string &longKey, const std::string &shortKey, const std::string &help,
-                    bool required, std::any default_value, const std::vector<Rule::sptr> &rules = {})
+                    bool required, std::string default_value, const std::vector<Rule::sptr> &rules = {})
         : Arg(longKey, shortKey, help, required)
         , m_default_value(default_value)
         , m_rules(rules)
@@ -150,12 +150,12 @@ public:
         Arg::setRequired(required);
         return *this;
     }
-    Option &setValue(const std::any &value)
+    Option &setValue(const std::string &value)
     {
         m_value = value;
         return *this;
     }
-    Option &setDefaultValue(const std::any &value)
+    Option &setDefaultValue(const std::string &value)
     {
         m_default_value = value;
         return *this;
@@ -165,7 +165,7 @@ public:
         m_rules.push_back(rule);
         return *this;
     }
-    std::any value() const
+    std::string value() const
     {
         return m_value.value_or(m_default_value);
     }
@@ -177,8 +177,8 @@ public:
     }
 
 private:
-    std::optional<std::any> m_value;
-    std::any m_default_value;
+    std::optional<std::string> m_value;
+    std::string m_default_value;
     std::vector<Rule::sptr> m_rules;
 };
 
@@ -194,9 +194,13 @@ public:
      * @brief 添加一个命令行参数
      * @param arg 命令行参数
      */
-    [[deprecated("use addFlag/addOption instead")]] bool addArg(const Arg &arg);
+    [[deprecated("use addFlag/addOption instead")]]
+    bool addArg(const Arg &arg);
     bool addFlag(const Flag &flag);
+    bool addFlag(const std::string &longKey, const std::string &shortKey, const std::string &help, bool required);
     bool addOption(const Option &option);
+    bool addOption(const std::string &longKey, const std::string &shortKey, const std::string &help,
+                    bool required, const std::string &default_value, const std::vector<Option::Rule::sptr> &rules = {});
 
     /**
      * @brief 解析添加好的命令行参数列表
@@ -213,9 +217,9 @@ public:
     bool isFlagSet(const std::string &key) const;
     /**
      * @brief 获取指定的option的值
-     * @return std::optional<std::any> 如果没有设置解析这个参数，则返回nullopt；否则返回值
+     * @return std::optional<std::string> 如果没有设置解析这个参数，则返回nullopt；否则返回值
      */
-    std::optional<std::any> getOptionValue(const std::string &key) const;
+    std::optional<std::string> getOptionValue(const std::string &key) const;
     /**
      * @brief 获取所有期望设置的命令行参数
      * @return std::stringstream 以字符串形式返回
@@ -260,7 +264,7 @@ private:
     std::unordered_map<std::string, Data<Option>> m_optionsPattern;
     // 扫描搜集出来的原始数据
     std::vector<std::string> m_flags; // 位置参数flags（允许重复）
-    std::unordered_map<std::string, std::any> m_options; // 命令行选项options（不允许重复）
+    std::unordered_map<std::string, std::string> m_options; // 命令行选项options（不允许重复）
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Flag &flag)
@@ -270,7 +274,7 @@ inline std::ostream &operator<<(std::ostream &os, const Flag &flag)
 }
 inline std::ostream &operator<<(std::ostream &os, const Option &option)
 {
-    os << "Option(" << option.longKey() << ", " << option.shortKey() << ": " << option.help() << ", value: " << std::any_cast<char const *>(option.value()) << ")";
+    os << "Option(" << option.longKey() << ", " << option.shortKey() << ": " << option.help() << ", value: " << option.value() << ")";
     return os;
 }
 
